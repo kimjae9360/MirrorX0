@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MirrorX0 - 강력한 웹사이트 미러링 및 크롤링 도구</title>
+  <meta name="description" content="자바스크립트 렌더링, 로그인 세션 연동, AI 기반 필터링을 지원하는 가장 진보된 윈도우용 웹사이트 미러링 및 크롤링 도구입니다.">
+  
+  <!-- SEO & OG Tags -->
+  <meta property="og:title" content="MirrorX0 - 강력한 차세대 웹사이트 미러링 도구">
+  <meta property="og:description" content="React/Vue 등 자바스크립트로 렌더링된 사이트와 로그인 장벽까지 모두 뚫고 통째로 저장하는 강력한 데스크톱 프로그램입니다.">
+  <meta property="og:type" content="website">
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css" rel="stylesheet" crossorigin="anonymous">
+  
+  <!-- CSS -->
+  <link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav>
+    <div class="container nav-container">
+      <div class="logo">Mirror<span>X0</span></div>
+      <div class="nav-links">
+        <a href="#download" class="btn btn-primary" style="padding: 8px 20px; font-size: 0.95rem;">다운로드</a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero Section -->
+  <section class="hero">
+    <div class="container fade-in">
+      <h1>자바스크립트와 로그인 장벽을 뚫는<br>진짜 웹사이트 미러링 도구</h1>
+      <p class="lead">HTTrack이 받지 못하는 최신 React/Vue 사이트도 크롬 브라우저 렌더링을 통해 완벽하게 복제합니다. 인터넷 없이도 실제처럼 작동하는 사본을 만들어보세요.</p>
+      
+      <div class="hero-actions">
+        <a href="#download" class="btn btn-primary">지금 다운로드 (Windows)</a>
+        <a href="#features" class="btn btn-outline">기능 알아보기</a>
+      </div>
+      
+      <div class="hero-image">
+        <!-- Placeholder for actual app screenshot -->
+        <div style="padding: 100px 20px; text-align: center;">
+          <span style="font-size: 3rem; display: block; margin-bottom: 20px;">🖼️</span>
+          여기에 프로그램 스크린샷이 들어갑니다
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features (왜 이걸 쓰는가) -->
+  <section id="features" class="container">
+    <h2 class="section-title fade-in">왜 MirrorX0인가요?</h2>
+    <p class="section-subtitle lead fade-in">단순한 HTML 다운로더가 아닙니다. 최신 웹 환경에 맞게 완전히 새롭게 설계되었습니다.</p>
+    
+    <div class="features-grid">
+      <div class="feature-card fade-in">
+        <div class="feature-icon">⚡️</div>
+        <h3>JS 사이트 완벽 지원</h3>
+        <p>HTTrack으로 받으면 빈 껍데기만 나오나요? MirrorX0는 내부적으로 실제 크롬 브라우저를 구동하여 스타일과 이미지가 포함된 '진짜 화면'을 캡처합니다.</p>
+      </div>
+      
+      <div class="feature-card fade-in">
+        <div class="feature-icon">🍪</div>
+        <h3>로그인 장벽 우회</h3>
+        <p>평소 쓰시던 크롬이나 엣지에 로그인된 세션을 그대로 가져옵니다. 로그인이 필요한 비공개 페이지나 포럼도 손쉽게 크롤링할 수 있습니다.</p>
+      </div>
+      
+      <div class="feature-card fade-in">
+        <div class="feature-icon">🤖</div>
+        <h3>AI 데이터 추출</h3>
+        <p>"레시피만 뽑아줘", "광고는 빼줘" 같이 자연어로 명령하세요. 전체 사이트에서 원하는 데이터만 쏙쏙 뽑아 엑셀이나 CSV로 정리해 드립니다.</p>
+      </div>
+      
+      <div class="feature-card fade-in">
+        <div class="feature-icon">🔄</div>
+        <h3>정적 / 동적 스위칭</h3>
+        <p>가볍고 빠른 수집이 필요할 땐 'HTTrack 엔진'으로, 복잡한 최신 사이트일 땐 'Smart Crawl'로. 버튼 하나로 최적의 모드를 골라 쓰세요.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Comparison Table -->
+  <section id="comparison" class="container">
+    <h2 class="section-title fade-in">HTTrack vs MirrorX0</h2>
+    
+    <div class="comparison-table-wrapper fade-in">
+      <table>
+        <thead>
+          <tr>
+            <th>기능</th>
+            <th>기존 HTTrack</th>
+            <th class="highlight-col">MirrorX0</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>React, Vue 등 SPA(자바스크립트) 사이트 복제</td>
+            <td class="cross">✕ 불가 (빈 화면)</td>
+            <td class="highlight-col check">✓ 완벽 지원 (크롬 렌더링)</td>
+          </tr>
+          <tr>
+            <td>로그인 세션 / Cloudflare 우회</td>
+            <td class="cross">✕ 복잡한 쿠키 설정 필요</td>
+            <td class="highlight-col check">✓ 로컬 브라우저 세션 자동 연동</td>
+          </tr>
+          <tr>
+            <td>AI 기반 데이터 추출 (문장 명령)</td>
+            <td class="cross">✕ 불가</td>
+            <td class="highlight-col check">✓ 자연어 필터링 및 엑셀 저장</td>
+          </tr>
+          <tr>
+            <td>고속 정적 파일 다운로드</td>
+            <td class="check">✓ 빠름</td>
+            <td class="highlight-col check">✓ 동일 엔진(GPLv3) 사용으로 빠름</td>
+          </tr>
+          <tr>
+            <td>사용자 인터페이스 (UI)</td>
+            <td class="cross">오래된 윈도우 98 스타일</td>
+            <td class="highlight-col check">최신 데스크톱 모던 UI</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- How it works (시작하기) -->
+  <section id="how-it-works" class="container">
+    <h2 class="section-title fade-in">3단계면 충분합니다</h2>
+    
+    <div class="steps-grid">
+      <div class="step-card fade-in">
+        <div class="step-number">1</div>
+        <h3>주소 입력</h3>
+        <p>복제하고 싶은 웹사이트의 URL을 대시보드에 입력합니다.</p>
+      </div>
+      
+      <div class="step-card fade-in">
+        <div class="step-number">2</div>
+        <h3>모드 선택</h3>
+        <p>빠른 미러링(HTTrack)을 쓸지, 정밀한 스마트 크롤링을 쓸지 선택합니다.</p>
+      </div>
+      
+      <div class="step-card fade-in">
+        <div class="step-number">3</div>
+        <h3>시작하기</h3>
+        <p>Start 버튼을 누르고 실시간 로그를 보며 완료를 기다리면 끝입니다.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Download Section -->
+  <section id="download" class="container">
+    <div class="download-section fade-in">
+      <h2>지금 바로 경험해보세요</h2>
+      <p style="margin-bottom: 32px; color: var(--fg-muted);">Windows 10 / 11 전용 데스크톱 애플리케이션입니다.</p>
+      
+      <a href="#" class="btn btn-primary" style="font-size: 1.25rem; padding: 18px 40px;">
+        ↓ Windows용 다운로드
+      </a>
+      
+      <div class="download-meta">
+        <span>버전: v0.1.0</span>
+        <span>용량: 약 25MB</span>
+        <span>업데이트: 2026-07-28</span>
+      </div>
+      
+      <a href="#" class="old-versions">이전 버전 다운로드</a>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="container">
+    <h2 class="section-title fade-in">자주 묻는 질문</h2>
+    
+    <div class="faq-list fade-in">
+      <div class="faq-item">
+        <button class="faq-question">
+          프로그램은 무료인가요?
+          <span class="faq-icon">▼</span>
+        </button>
+        <div class="faq-answer">
+          <p>네, MirrorX0는 오픈소스로 누구나 무료로 사용할 수 있습니다.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">
+          로그인이 필요한 사이트도 정말 받아지나요?
+          <span class="faq-icon">▼</span>
+        </button>
+        <div class="faq-answer">
+          <p>네, 설정(Settings) 탭에서 '로컬 브라우저 쿠키 연동'을 켜시면, 현재 윈도우에 설치된 크롬이나 엣지 브라우저의 로그인 상태를 그대로 가져와 비공개 페이지를 복제할 수 있습니다.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">
+          다운로드된 파일은 어디에 저장되나요?
+          <span class="faq-icon">▼</span>
+        </button>
+        <div class="faq-answer">
+          <p>기본적으로 프로그램이 설치된 폴더 내부의 프로젝트 이름 폴더에 저장됩니다. 대시보드의 'Save To' 항목에서 원하시는 저장 경로로 언제든 변경하실 수 있습니다.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">
+          맥(Mac)이나 리눅스에서는 사용할 수 없나요?
+          <span class="faq-icon">▼</span>
+        </button>
+        <div class="faq-answer">
+          <p>현재 MirrorX0는 Windows 환경에 최적화되어 개발되었습니다. 맥이나 리눅스 지원은 향후 버전에서 고려 중입니다.</p>
+        </div>
+      </div>
+      
+      <div class="faq-item">
+        <button class="faq-question">
+          안전한 프로그램인가요?
+          <span class="faq-icon">▼</span>
+        </button>
+        <div class="faq-answer">
+          <p>네, 어떠한 개인정보도 외부 서버로 전송하지 않습니다. 로컬 쿠키 연동 기능 역시 사용자 PC 내부에서만 작동하며 크롤링 엔진에만 전달됩니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="container">
+      <div class="footer-content">
+        <div class="logo">Mirror<span>X0</span></div>
+        <div class="footer-links">
+          <a href="#features">기능</a>
+          <a href="#comparison">비교</a>
+          <a href="#faq">FAQ</a>
+          <a href="https://github.com" target="_blank">GitHub</a>
+        </div>
+      </div>
+      <div class="footer-bottom">
+        <p>MirrorX0는 사이트 미러링에 HTTrack 엔진(GPLv3)을 사용합니다.</p>
+        <p style="margin-top: 8px;">&copy; 2026 MirrorX0. All rights reserved.</p>
+      </div>
+    </div>
+  </footer>
+
+  <script src="assets/app.js"></script>
+</body>
+</html>

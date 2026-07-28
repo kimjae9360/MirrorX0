@@ -237,8 +237,33 @@ class PreferencesDialog(tk.Toplevel):
         ttk.Label(outer, text=t('prefs_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 2))
         ttk.Label(outer, text=t('prefs_subtitle'), style='Sub.TLabel').pack(anchor='w', pady=(0, 14))
 
+        # 설정을 두 층으로 나눈다. 19개를 한 줄로 늘어놓으면 초보자는 무엇을
+        # 건드려야 할지 알 수 없다. 실제로 자주 쓰는 건 언어/로그인/AI 셋뿐이라
+        # 그것만 위에 펼쳐 두고 나머지는 '전문가 설정'으로 접어 둔다.
+        basic_zone = ttk.Frame(outer)
+        basic_zone.pack(fill='x')
+
+        self._expert_btn = RoundedButton(outer, f"▸  {t('expert_show')}",
+                                         command=self._toggle_expert, variant='ghost')
+        self._expert_btn.pack(anchor='w', pady=(4, 10))
+        self._expert_zone = ttk.Frame(outer)
+        self._expert_open = False
+
+        # --- 기본: 언어 / 브라우저 로그인 ---
+        sec_basic = self._section(basic_zone, t('section_basic'))
+        current_lang = settings.get('language', 'en')
+        self.lang_var = tk.StringVar(value=LANG_DISPLAY.get(current_lang, LANG_DISPLAY['en']))
+        self._row(sec_basic, '🌐', t('label_language'), t('caption_language'),
+                  lambda p: ttk.Combobox(p, textvariable=self.lang_var, state='readonly',
+                                         values=[LANG_DISPLAY['en'], LANG_DISPLAY['ko']],
+                                         width=combo_width(list(LANG_DISPLAY.values()))).pack())
+
+        self.use_local_cookies_var = tk.BooleanVar(value=bool(settings.get('use_local_cookies', False)))
+        self._row(sec_basic, '🍪', t('label_use_local_cookies'), t('caption_use_local_cookies'),
+                  lambda p: ToggleSwitch(p, variable=self.use_local_cookies_var, page_bg=PANEL).pack())
+
         # --- 연결 ---
-        sec1 = self._section(outer, t('section_connection'))
+        sec1 = self._section(self._expert_zone, t('section_connection'))
         self.ua_var = tk.StringVar(value=settings['user_agent'])
         self._row(sec1, '🧭', t('label_user_agent'), t('caption_user_agent'),
                   lambda p: ttk.Entry(p, textvariable=self.ua_var).pack(fill='x', ipady=3), full_width=True)
@@ -251,7 +276,7 @@ class PreferencesDialog(tk.Toplevel):
                   lambda p: ttk.Spinbox(p, from_=0, to=10, textvariable=self.retry_var, width=8).pack())
 
         # --- 속도 & 시간 ---
-        sec2 = self._section(outer, t('section_speed_time'))
+        sec2 = self._section(self._expert_zone, t('section_speed_time'))
         self.timeout_var = tk.StringVar(value=str(settings['timeout']))
         self._row(sec2, '⏱', t('label_timeout'), t('caption_timeout'),
                   lambda p: ttk.Spinbox(p, from_=5, to=600, increment=5, textvariable=self.timeout_var,
@@ -262,7 +287,7 @@ class PreferencesDialog(tk.Toplevel):
                                         width=12).pack())
 
         # --- 정책 ---
-        sec3 = self._section(outer, t('section_policy'))
+        sec3 = self._section(self._expert_zone, t('section_policy'))
         robots_options = get_robots_options()
         self.robots_var = tk.StringVar(value=next(
             (label for code, label in robots_options if code == str(settings['robots'])), robots_options[2][1]))
@@ -276,26 +301,13 @@ class PreferencesDialog(tk.Toplevel):
                   lambda p: ToggleSwitch(p, variable=self.external_var, page_bg=PANEL).pack())
 
         # --- 네트워크 ---
-        sec4 = self._section(outer, t('section_network'))
+        sec4 = self._section(self._expert_zone, t('section_network'))
         self.proxy_var = tk.StringVar(value=settings['proxy'])
         self._row(sec4, '🛰', t('label_proxy'), t('caption_proxy'),
                   lambda p: ttk.Entry(p, textvariable=self.proxy_var, width=32).pack(ipady=3))
 
-        self.use_local_cookies_var = tk.BooleanVar(value=bool(settings.get('use_local_cookies', False)))
-        self._row(sec4, '🍪', t('label_use_local_cookies'), t('caption_use_local_cookies'),
-                  lambda p: ToggleSwitch(p, variable=self.use_local_cookies_var, page_bg=PANEL).pack())
-
-        # --- 언어 ---
-        sec5 = self._section(outer, t('section_language'))
-        current_lang = settings.get('language', 'en')
-        self.lang_var = tk.StringVar(value=LANG_DISPLAY.get(current_lang, LANG_DISPLAY['en']))
-        self._row(sec5, '🌐', t('label_language'), t('caption_language'),
-                  lambda p: ttk.Combobox(p, textvariable=self.lang_var, state='readonly',
-                                         values=[LANG_DISPLAY['en'], LANG_DISPLAY['ko']],
-                                         width=combo_width(list(LANG_DISPLAY.values()))).pack())
-
         # --- 고급 ---
-        sec6 = self._section(outer, t('section_advanced'))
+        sec6 = self._section(self._expert_zone, t('section_advanced'))
         self.referer_var = tk.StringVar(value=settings.get('referer', ''))
         self._row(sec6, '🔗', t('label_referer'), t('caption_referer'),
                   lambda p: ttk.Entry(p, textvariable=self.referer_var).pack(fill='x', ipady=3), full_width=True)
@@ -353,7 +365,7 @@ class PreferencesDialog(tk.Toplevel):
                   lambda p: ToggleSwitch(p, variable=self.search_index_var, page_bg=PANEL).pack())
 
         # --- AI 크롤링 ---
-        sec7 = self._section(outer, t('section_ai'))
+        sec7 = self._section(basic_zone, t('section_ai'))
         self._provider_options = [(p, ai_extract.PROVIDER_DISPLAY_NAMES[p]) for p in ai_extract.PROVIDERS]
         current_provider = settings.get('ai_provider', 'anthropic')
         self.ai_provider_var = tk.StringVar(value=next(
@@ -376,6 +388,16 @@ class PreferencesDialog(tk.Toplevel):
         self._row(sec7, '🔑', t('label_api_key_gemini'), t('caption_api_key'),
                   lambda p: ttk.Entry(p, textvariable=self.gemini_key_var, show='*').pack(
                       fill='x', ipady=3), full_width=True)
+
+    def _toggle_expert(self):
+        """전문가 설정을 펼치거나 접는다."""
+        self._expert_open = not self._expert_open
+        if self._expert_open:
+            self._expert_zone.pack(fill='x')
+            self._expert_btn.set_text(f"▾  {t('expert_hide')}")
+        else:
+            self._expert_zone.pack_forget()
+            self._expert_btn.set_text(f"▸  {t('expert_show')}")
 
     def _section(self, parent, title):
         card = RoundedCard(parent, radius=14, padding=16)
@@ -1322,13 +1344,37 @@ class MirrorXApp:
 
         # 실제로 타이핑하는 입력창은 본문보다 한 단계 크게 - 작으면 읽기 불편하다.
         field_font = (FONTS['ui'], TYPE_INPUT)
-        style.configure('TEntry', fieldbackground=PANEL_LIGHT, foreground=FG, insertcolor=FG,
+        # 입력칸 색 규칙: 흰색 = 지금 입력할 수 있음 / 회색 = 잠김(작업 중).
+        # 거의 모든 프로그램에서 '회색으로 채워진 칸'은 비활성을 뜻하기 때문에,
+        # 입력 가능한 칸을 회색으로 두면 정반대 신호를 준다. 대신 흰 배경에
+        # 테두리로 칸의 경계를 보여주고, 커서가 들어가면 테두리를 강조색으로 바꾼다.
+        style.configure('TEntry', fieldbackground=PANEL, foreground=FG, insertcolor=FG,
                          bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER, font=field_font,
                          padding=6)
-        style.configure('TCombobox', fieldbackground=PANEL_LIGHT, foreground=FG, arrowcolor=FG_MUTED,
+        style.map('TEntry',
+                  fieldbackground=[('disabled', PANEL_LIGHT), ('readonly', PANEL_LIGHT)],
+                  foreground=[('disabled', FG_MUTED), ('readonly', FG_MUTED)],
+                  bordercolor=[('focus', ACCENT)], lightcolor=[('focus', ACCENT)],
+                  darkcolor=[('focus', ACCENT)])
+
+        style.configure('TCombobox', fieldbackground=PANEL, foreground=FG, arrowcolor=FG_MUTED,
+                         bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER,
                          font=field_font, padding=5)
-        style.map('TCombobox', fieldbackground=[('readonly', PANEL_LIGHT)], foreground=[('readonly', FG)])
-        style.configure('TSpinbox', fieldbackground=PANEL_LIGHT, foreground=FG, arrowsize=14, font=field_font)
+        # 드롭다운은 state='readonly'로 쓰므로(직접 타이핑 못 하게) readonly도 '입력 가능'
+        # 취급해야 한다. 진짜 잠긴 상태는 disabled 하나뿐이다.
+        style.map('TCombobox',
+                  fieldbackground=[('disabled', PANEL_LIGHT), ('readonly', PANEL)],
+                  foreground=[('disabled', FG_MUTED), ('readonly', FG)],
+                  arrowcolor=[('disabled', BORDER)],
+                  bordercolor=[('focus', ACCENT)])
+
+        style.configure('TSpinbox', fieldbackground=PANEL, foreground=FG, arrowsize=14,
+                         bordercolor=BORDER, lightcolor=BORDER, darkcolor=BORDER, font=field_font)
+        style.map('TSpinbox',
+                  fieldbackground=[('disabled', PANEL_LIGHT)],
+                  foreground=[('disabled', FG_MUTED)],
+                  arrowcolor=[('disabled', BORDER)],
+                  bordercolor=[('focus', ACCENT)])
 
         # ttk Combobox의 드롭다운 목록은 내부적으로 일반 tk.Listbox라서 위 스타일 font가
         # 적용되지 않는다 (그대로 두면 시스템 기본 작은 글씨로 나옴) - 전역 옵션으로 별도 지정.
