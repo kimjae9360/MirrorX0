@@ -1,0 +1,29 @@
+# MirrorX0 실행에 필요한 패키지
+# 설치:  venv\Scripts\pip install -r requirements.txt
+#
+# venv 폴더 자체는 저장소에 넣지 않는다(파일이 수만 개라서).
+# 새 PC에서는 아래 순서로 환경을 만든다.
+#   1) python -m venv engine\venv
+#   2) engine\venv\Scripts\pip install -r requirements.txt
+#   3) engine\venv\Scripts\playwright install chromium   (스마트 크롤링을 쓸 때만)
+
+# --- 스마트 크롤링 (실제 브라우저로 렌더링) ---
+playwright==1.61.0
+
+# --- HTML 파싱 (링크 수집, AI 추출 전처리) ---
+beautifulsoup4==4.15.0
+lxml==6.1.1
+
+# --- AI 기능 (셋 중 사용자가 고른 것만 실제로 쓰임) ---
+anthropic==0.120.0
+openai==2.48.0
+google-genai==2.14.0
+
+# --- 데이터 내보내기 (AI 추출 결과를 엑셀로) ---
+openpyxl==3.1.5
+
+# --- 로그인이 필요한 사이트: 로컬 브라우저 쿠키 읽기 ---
+browser-cookie3==0.20.1
+
+# --- exe 빌드용 (앱 실행에는 불필요) ---
+pyinstaller==6.21.0
