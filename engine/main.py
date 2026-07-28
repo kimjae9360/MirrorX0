@@ -1829,7 +1829,7 @@ class PreferencesDialog(tk.Toplevel):
         sec4 = self._section(outer, t('section_network'))
         self.proxy_var = tk.StringVar(value=settings['proxy'])
         self._row(sec4, '🛰', t('label_proxy'), t('caption_proxy'),
-                  lambda p: ttk.Entry(p, textvariable=self.proxy_var, width=24).pack())
+                  lambda p: ttk.Entry(p, textvariable=self.proxy_var, width=32).pack(ipady=3))
 
         self.use_local_cookies_var = tk.BooleanVar(value=bool(settings.get('use_local_cookies', False)))
         self._row(sec4, '🍪', t('label_use_local_cookies'), t('caption_use_local_cookies'),
@@ -1851,7 +1851,7 @@ class PreferencesDialog(tk.Toplevel):
 
         self.lang_header_var = tk.StringVar(value=settings.get('lang_header', ''))
         self._row(sec6, '🗣', t('label_lang_header'), t('caption_lang_header'),
-                  lambda p: ttk.Entry(p, textvariable=self.lang_header_var, width=18).pack())
+                  lambda p: ttk.Entry(p, textvariable=self.lang_header_var, width=26).pack(ipady=3))
 
         self.custom_headers_text = tk.Text(sec6, height=3, bg=PANEL_LIGHT, fg=FG, insertbackground=FG,
                                             relief='flat', font=(FONT_MONO, 10), highlightthickness=1,
@@ -1913,13 +1913,16 @@ class PreferencesDialog(tk.Toplevel):
 
         self.anthropic_key_var = tk.StringVar(value=settings.get('anthropic_api_key', ''))
         self._row(sec7, '🔑', t('label_api_key_anthropic'), None,
-                  lambda p: ttk.Entry(p, textvariable=self.anthropic_key_var, show='*', width=22).pack())
+                  lambda p: ttk.Entry(p, textvariable=self.anthropic_key_var, show='*').pack(
+                      fill='x', ipady=3), full_width=True)
         self.openai_key_var = tk.StringVar(value=settings.get('openai_api_key', ''))
         self._row(sec7, '🔑', t('label_api_key_openai'), None,
-                  lambda p: ttk.Entry(p, textvariable=self.openai_key_var, show='*', width=22).pack())
+                  lambda p: ttk.Entry(p, textvariable=self.openai_key_var, show='*').pack(
+                      fill='x', ipady=3), full_width=True)
         self.gemini_key_var = tk.StringVar(value=settings.get('gemini_api_key', ''))
         self._row(sec7, '🔑', t('label_api_key_gemini'), t('caption_api_key'),
-                  lambda p: ttk.Entry(p, textvariable=self.gemini_key_var, show='*', width=22).pack())
+                  lambda p: ttk.Entry(p, textvariable=self.gemini_key_var, show='*').pack(
+                      fill='x', ipady=3), full_width=True)
 
     def _section(self, parent, title):
         card = RoundedCard(parent, radius=14, padding=16)
