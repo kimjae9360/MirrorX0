@@ -3,14 +3,16 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MirrorX0 - 강력한 웹사이트 미러링 및 크롤링 도구</title>
-  <meta name="description" content="자바스크립트 렌더링, 로그인 세션 연동, AI 기반 필터링을 지원하는 가장 진보된 윈도우용 웹사이트 미러링 및 크롤링 도구입니다.">
-  
+  <title>MirrorX0 - 웹사이트 미러링 및 크롤링 도구</title>
+  <meta name="description" content="자바스크립트로 그려지는 사이트까지 실제 브라우저 렌더링으로 받아내는 윈도우용 웹사이트 미러링 도구. HTTrack 엔진 기반, AI 데이터 추출 지원.">
+
   <!-- SEO & OG Tags -->
-  <meta property="og:title" content="MirrorX0 - 강력한 차세대 웹사이트 미러링 도구">
-  <meta property="og:description" content="React/Vue 등 자바스크립트로 렌더링된 사이트와 로그인 장벽까지 모두 뚫고 통째로 저장하는 강력한 데스크톱 프로그램입니다.">
+  <meta property="og:title" content="MirrorX0 - 자바스크립트 사이트까지 받는 미러링 도구">
+  <meta property="og:description" content="React/Vue 등 자바스크립트로 렌더링된 사이트도 실제 크롬 브라우저로 받아 오프라인에서 그대로 열어볼 수 있게 저장합니다.">
   <meta property="og:type" content="website">
-  
+  <meta property="og:url" content="https://kimjae9360.github.io/MirrorX0/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' rx='22' fill='%23F97316'/%3E%3Ctext x='50' y='68' font-size='58' font-family='Arial,sans-serif' font-weight='700' fill='white' text-anchor='middle'%3EX0%3C/text%3E%3C/svg%3E">
+
   <!-- Fonts -->
   <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
   <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.8/dist/web/static/pretendard-dynamic-subset.css" rel="stylesheet" crossorigin="anonymous">
@@ -158,17 +160,24 @@
       <h2>지금 바로 경험해보세요</h2>
       <p style="margin-bottom: 32px; color: var(--fg-muted);">Windows 10 / 11 전용 데스크톱 애플리케이션입니다.</p>
       
-      <a href="#" class="btn btn-primary" style="font-size: 1.25rem; padding: 18px 40px;">
+      <a href="https://github.com/kimjae9360/MirrorX0/releases/latest/download/MirrorX0-v0.1.0-win64.zip"
+         class="btn btn-primary" style="font-size: 1.25rem; padding: 18px 40px;">
         ↓ Windows용 다운로드
       </a>
-      
+
       <div class="download-meta">
         <span>버전: v0.1.0</span>
-        <span>용량: 약 25MB</span>
+        <span>용량: 약 76MB</span>
         <span>업데이트: 2026-07-28</span>
       </div>
-      
-      <a href="#" class="old-versions">이전 버전 다운로드</a>
+
+      <p class="download-note">
+        서명되지 않은 배포판이라 설치 시 Windows SmartScreen 경고가 뜰 수 있습니다.
+        '추가 정보' → '실행'을 누르면 설치가 진행됩니다.
+        <a href="https://github.com/kimjae9360/MirrorX0/releases/latest" target="_blank" rel="noopener">SHA-256 체크섬 확인</a>
+      </p>
+
+      <a href="https://github.com/kimjae9360/MirrorX0/releases" class="old-versions">이전 버전 다운로드</a>
     </div>
   </section>
 
@@ -193,7 +202,7 @@
           <span class="faq-icon">▼</span>
         </button>
         <div class="faq-answer">
-          <p>네, 설정(Settings) 탭에서 '로컬 브라우저 쿠키 연동'을 켜시면, 현재 윈도우에 설치된 크롬이나 엣지 브라우저의 로그인 상태를 그대로 가져와 비공개 페이지를 복제할 수 있습니다.</p>
+          <p>네, ⚙ 환경설정(또는 스마트 크롤링 옵션)에서 '내 브라우저 로그인 사용'을 켜시면, 크롬이나 엣지에 이미 로그인해 둔 상태를 그대로 써서 로그인이 필요한 페이지도 받을 수 있습니다. 지금 받는 사이트의 쿠키만 사용하고 다른 사이트 것은 읽지 않습니다.</p>
         </div>
       </div>
       
@@ -203,7 +212,7 @@
           <span class="faq-icon">▼</span>
         </button>
         <div class="faq-answer">
-          <p>기본적으로 프로그램이 설치된 폴더 내부의 프로젝트 이름 폴더에 저장됩니다. 대시보드의 'Save To' 항목에서 원하시는 저장 경로로 언제든 변경하실 수 있습니다.</p>
+          <p>기본적으로 내 PC의 '다운로드\MirrorX' 폴더 안에, 프로젝트 이름으로 만든 폴더에 저장됩니다. 화면의 '저장 위치' 항목에서 원하는 경로로 언제든 바꿀 수 있습니다.</p>
         </div>
       </div>
       
@@ -223,7 +232,8 @@
           <span class="faq-icon">▼</span>
         </button>
         <div class="faq-answer">
-          <p>네, 어떠한 개인정보도 외부 서버로 전송하지 않습니다. 로컬 쿠키 연동 기능 역시 사용자 PC 내부에서만 작동하며 크롤링 엔진에만 전달됩니다.</p>
+          <p>사이트를 받는 기능(사이트 미러링, 스마트 크롤링) 자체는 어떤 데이터도 외부로 보내지 않고 내 PC 안에서만 동작합니다. 브라우저 로그인 연동도 지금 받는 사이트의 쿠키만 로컬에서 사용합니다.
+          다만 AI 데이터 추출 기능을 쓰면, 추출을 요청한 페이지 내용이 사용자가 직접 등록한 API 키를 통해 선택한 AI 사업자(Anthropic/OpenAI/Google 중 택1)에게 전송됩니다. API 키는 내 PC에만 저장되고, AI 기능을 쓰지 않으면 이 전송 자체가 일어나지 않습니다.</p>
         </div>
       </div>
     </div>
@@ -238,7 +248,8 @@
           <a href="#features">기능</a>
           <a href="#comparison">비교</a>
           <a href="#faq">FAQ</a>
-          <a href="https://github.com" target="_blank">GitHub</a>
+          <a href="https://github.com/kimjae9360/MirrorX0" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://github.com/kimjae9360/MirrorX0/blob/main/LICENSE" target="_blank" rel="noopener">라이선스</a>
         </div>
       </div>
       <div class="footer-bottom">

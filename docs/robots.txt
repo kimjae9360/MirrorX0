@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://kimjae9360.github.io/MirrorX0/sitemap.xml
