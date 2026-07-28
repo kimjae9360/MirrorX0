@@ -182,7 +182,18 @@ STRINGS = {
         'label_follow_depth': 'Follow links',
         'caption_follow_depth': 'How many link hops to follow from the starting address. 1 means the given pages only.',
         'label_wait_until': 'Wait until',
-        'caption_wait_until': "'networkidle' waits for the page to settle — safest for pages that load late.",
+        'caption_wait_until_networkidle': (
+            "Waits until the page settles down (network goes quiet). Safest choice - "
+            "the default, and right for almost every site."
+        ),
+        'caption_wait_until_load': (
+            "Moves on once the page's basic files (images etc.) have loaded. Faster than "
+            "'networkidle', but can miss content that appears later (infinite scroll, etc.)."
+        ),
+        'caption_wait_until_domcontentloaded': (
+            "Moves on as soon as the page structure is up, without waiting for anything else. "
+            "Fastest, but likely to miss content that JavaScript draws in afterward."
+        ),
         'summary_smart': 'Smart crawl',
         'summary_smart_value': '{pages} pages · depth {depth}',
         'warn_playwright_missing': "Smart crawl needs Playwright. Install it with: pip install playwright",
@@ -607,7 +618,18 @@ STRINGS = {
         'label_follow_depth': '링크 따라가기',
         'caption_follow_depth': '시작 주소에서 링크를 몇 단계까지 따라갈지 정해요. 1이면 입력한 페이지만 받습니다.',
         'label_wait_until': '대기 조건',
-        'caption_wait_until': "'networkidle'은 페이지가 잠잠해질 때까지 기다려요 — 늦게 뜨는 내용까지 받기에 가장 안전합니다.",
+        'caption_wait_until_networkidle': (
+            '페이지가 잠잠해질 때까지(네트워크 요청이 뜸해질 때까지) 기다려요. 가장 안전한 기본값이고, '
+            '거의 모든 사이트에 이거면 충분해요.'
+        ),
+        'caption_wait_until_load': (
+            "페이지의 기본 자원(이미지 등)이 다 불러와지면 바로 진행해요. 'networkidle'보다 빠르지만, "
+            '나중에 나타나는 내용(무한 스크롤 등)은 놓칠 수 있어요.'
+        ),
+        'caption_wait_until_domcontentloaded': (
+            '페이지 뼈대만 갖춰지면 바로 진행해요. 가장 빠르지만, 자바스크립트가 나중에 그려 넣는 '
+            '내용은 놓칠 가능성이 커요.'
+        ),
         'summary_smart': '스마트 크롤링',
         'summary_smart_value': '{pages}페이지 · 깊이 {depth}',
         'warn_playwright_missing': '스마트 크롤링에는 Playwright가 필요해요. 설치 명령: pip install playwright',

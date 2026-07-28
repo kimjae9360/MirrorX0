@@ -1361,7 +1361,15 @@ class OptionsDialog(tk.Toplevel):
         ttk.Label(parent, text=t('label_wait_until'), style='RowTitle.TLabel').pack(anchor='w', pady=(14, 0))
         ttk.Combobox(parent, textvariable=app.wait_until_var, state='readonly',
                      values=['networkidle', 'load', 'domcontentloaded']).pack(fill='x', pady=(4, 0), ipady=2)
-        ttk.Label(parent, text=t('caption_wait_until'), style='Caption.TLabel',
+        # 고른 값에 맞는 설명으로 매번 바뀐다 - 예전엔 무엇을 골라도 설명이
+        # 'networkidle' 얘기만 해서, 다른 값을 골랐을 때 뭘 뜻하는지 알 수 없었다.
+        wait_caption_var = tk.StringVar()
+
+        def _sync_wait_caption(*_a):
+            wait_caption_var.set(t(f"caption_wait_until_{app.wait_until_var.get()}"))
+        app.wait_until_var.trace_add('write', _sync_wait_caption)
+        _sync_wait_caption()
+        ttk.Label(parent, textvariable=wait_caption_var, style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
         # 어디까지 따라갈지(도메인/폴더 범위) - 사이트 미러링의 '수집 범위' 다이얼로그와
