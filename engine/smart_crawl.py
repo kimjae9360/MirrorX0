@@ -18,6 +18,7 @@ Chrome이 없으면 예외를 내지 않고 로그만 남기고 종료한다(예
 """
 import os
 import re
+import random
 import hashlib
 import urllib.parse
 
@@ -361,6 +362,10 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
     same_folder = bool(scope.get('same_folder'))
     boundaries = _start_boundaries(urls) if same_folder else None
 
+    # 요청 사이 텀 - HTTrack 쪽 '안전장치'에는 있었는데 스마트 크롤링에는 없던 것.
+    # 사이트 하나에 짧은 시간 안에 페이지 요청을 몰아치면 차단당하기 쉽다.
+    pause = smart_opts.get('pause')  # (최소초, 최대초) 또는 None(꺼짐)
+
     try:
         os.makedirs(out_dir, exist_ok=True)
     except Exception as e:
@@ -462,6 +467,13 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                     log_fn(f'[스마트 크롤링] 실패 ({current_url}): {e}')
 
                 report(current_url)
+
+                # 다음 페이지로 넘어가기 전에 잠깐 쉰다(설정했다면). 마지막 페이지 뒤에는
+                # 어차피 쓸모없는 대기라 큐가 남아있을 때만 쉰다.
+                if pause and queue:
+                    lo, hi = pause
+                    if hi > 0:
+                        page.wait_for_timeout(random.uniform(min(lo, hi), hi) * 1000)
 
             browser.close()
 

@@ -1388,6 +1388,28 @@ class OptionsDialog(tk.Toplevel):
         ttk.Label(parent, text=t('caption_same_folder'), style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
+        # 요청 사이 텀 - HTTrack 쪽 안전장치에는 있는데 스마트 크롤링엔 없던 것.
+        ttk.Checkbutton(parent, text=t('label_smart_pause_enable'),
+                        variable=app.smart_pause_enable_var,
+                        command=lambda: _sync_pause_row()).pack(anchor='w', pady=(16, 0))
+        pause_row = ttk.Frame(parent, style='Panel.TFrame')
+        ttk.Label(pause_row, text=t('safety_pause_between'), style='Muted.TLabel').pack(side='left')
+        ttk.Spinbox(pause_row, from_=0, to=300, textvariable=app.smart_pause_min_var, width=6).pack(
+            side='left', padx=(8, 4))
+        ttk.Label(pause_row, text=t('safety_pause_and'), style='Muted.TLabel').pack(side='left')
+        ttk.Spinbox(pause_row, from_=0, to=300, textvariable=app.smart_pause_max_var, width=6).pack(
+            side='left', padx=(4, 4))
+        ttk.Label(pause_row, text=t('safety_pause_unit'), style='Muted.TLabel').pack(side='left')
+
+        def _sync_pause_row():
+            if app.smart_pause_enable_var.get():
+                pause_row.pack(anchor='w', pady=(6, 0))
+            else:
+                pause_row.pack_forget()
+        _sync_pause_row()
+        ttk.Label(parent, text=t('caption_smart_pause'), style='Caption.TLabel',
+                  wraplength=580).pack(anchor='w', pady=(4, 0))
+
         # 로그인이 필요한 사이트는 이 토글이 핵심이라 스마트 옵션 안에도 같이 노출한다.
         ttk.Label(parent, text=t('label_use_local_cookies'), style='RowTitle.TLabel').pack(anchor='w', pady=(16, 0))
         ToggleSwitch(parent, variable=app.use_local_cookies_var, page_bg=PANEL,
@@ -1649,6 +1671,11 @@ class MirrorXApp:
         self.max_pages_var = tk.StringVar(value='50')
         self.follow_depth_var = tk.StringVar(value='1')
         self.wait_until_var = tk.StringVar(value='networkidle')
+        # 요청 사이 텀 - HTTrack 쪽 안전장치에는 있는데 스마트 크롤링에는 없던 것.
+        # 기본은 꺼둔다(끄면 예전과 동일하게 동작 - 기존 사용자 흐름을 안 건드림).
+        self.smart_pause_enable_var = tk.BooleanVar(value=False)
+        self.smart_pause_min_var = tk.StringVar(value='1')
+        self.smart_pause_max_var = tk.StringVar(value='3')
 
         # 완료 후 동작
         self.power_action_var = tk.StringVar(value='none')
@@ -1946,9 +1973,11 @@ class MirrorXApp:
         if not hasattr(self, '_summary_vars'):
             return
         if 'smart' in self._summary_vars:
-            self._summary_vars['smart'].set(t('summary_smart_value',
-                                              pages=self.max_pages_var.get(),
-                                              depth=self.follow_depth_var.get()))
+            text = t('summary_smart_value', pages=self.max_pages_var.get(), depth=self.follow_depth_var.get())
+            pause = self._effective_smart_pause()
+            if pause:
+                text += f' · {pause[0]}~{pause[1]}s'
+            self._summary_vars['smart'].set(text)
         if 'scope' not in self._summary_vars:
             # 스마트 모드에서는 미러링 전용 요약 행이 없으므로 여기서 끝낸다.
             self._set_power_summary()
@@ -2150,6 +2179,17 @@ class MirrorXApp:
             return None
         try:
             return max(1, int(self.depth_var.get()))
+        except ValueError:
+            return None
+
+    def _effective_smart_pause(self):
+        """스마트 크롤링/페이지네이션 추출에 넘길 (최소초, 최대초) 또는 None(꺼짐)."""
+        if not self.smart_pause_enable_var.get():
+            return None
+        try:
+            p_min = max(0, int(self.smart_pause_min_var.get()))
+            p_max = max(p_min, int(self.smart_pause_max_var.get()))
+            return (p_min, p_max)
         except ValueError:
             return None
 
@@ -2487,7 +2527,8 @@ class MirrorXApp:
             'urls': urls,
             'save_path': out_dir,
             'smart': {'wait_until': self.wait_until_var.get(),
-                      'max_pages': int(self.max_pages_var.get() or 50)},
+                      'max_pages': int(self.max_pages_var.get() or 50),
+                      'pause': self._effective_smart_pause()},
             'httrack': {'depth': self.follow_depth_var.get()},
             'scope': {'domain_scope': next(
                 (code for code, label in self.domain_scope_options

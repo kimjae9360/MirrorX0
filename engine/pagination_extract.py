@@ -65,10 +65,15 @@ def find_next_control(page):
 
 
 def extract_paginated_list(start_url, fields, api_key, log_fn, provider='anthropic', model=None,
-                            max_pages=20, use_local_cookies=False, progress_fn=None, should_stop=None):
+                            max_pages=20, use_local_cookies=False, progress_fn=None, should_stop=None,
+                            pause=None):
     """start_url에서 시작해 반복 항목을 뽑고, 다음 페이지를 계속 따라가며
     누적한다. max_pages는 무한 루프를 막는 안전장치다.
+    pause: (최소초, 최대초) - 페이지 사이에 잠깐 쉬게 한다(선택). 같은 사이트를
+    빠르게 반복 요청하면 차단당하기 쉬우니, 여러 페이지를 도는 이 기능에서는
+    특히 중요하다.
     반환: [{field: value, ..., '_page': int}, ...]"""
+    import random
     import pattern_detect
     import ai_extract
     from playwright.sync_api import sync_playwright
@@ -153,6 +158,11 @@ def extract_paginated_list(start_url, fields, api_key, log_fn, provider='anthrop
                     break
 
             page_num += 1
+
+            if pause and page_num <= max_pages:
+                lo, hi = pause
+                if hi > 0:
+                    page.wait_for_timeout(random.uniform(min(lo, hi), hi) * 1000)
 
         browser.close()
 

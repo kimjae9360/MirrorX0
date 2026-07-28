@@ -272,6 +272,11 @@ STRINGS = {
         'safety_pause_between': 'Wait between',
         'safety_pause_and': 'and',
         'safety_pause_unit': 'sec',
+        'label_smart_pause_enable': 'Pause between pages',
+        'caption_smart_pause': (
+            "Waits a random amount of time before opening each page. Slower, but lowers the "
+            "chance of the site blocking you — worth turning on for a large site."
+        ),
         'safety_maxtime_enable': 'Limit total run time',
         'safety_maxtime_label': 'Stop after (hours)',
         'safety_maxtime_caption': 'Mirroring stops automatically once this many hours have passed, finished or not.',
@@ -708,6 +713,11 @@ STRINGS = {
         'safety_pause_between': '텀',
         'safety_pause_and': '~',
         'safety_pause_unit': '초',
+        'label_smart_pause_enable': '페이지 사이 텀 두기',
+        'caption_smart_pause': (
+            '페이지를 열기 전에 무작위로 잠깐 쉽니다. 느려지지만, 사이트가 차단할 확률을 낮춰줘요 — '
+            '큰 사이트를 받을 땐 켜두는 게 좋아요.'
+        ),
         'safety_maxtime_enable': '최대 실행 시간 제한',
         'safety_maxtime_label': '시간 후 중단',
         'safety_maxtime_caption': '완료 여부와 상관없이 지정한 시간이 지나면 자동으로 멈춥니다.',
