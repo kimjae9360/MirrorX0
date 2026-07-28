@@ -194,6 +194,51 @@ def extract_fields(html, fields, api_key, provider='anthropic', model=None):
     return result
 
 
+def _extract_list_schema(fields):
+    """반복 항목 여러 개를 한 번에 뽑을 때 쓰는 스키마 - 항목 하나짜리 스키마를
+    배열로 감싼다. 항목 개수와 무관하게 API 호출은 여전히 1회다."""
+    return {
+        'type': 'object',
+        'properties': {'items': {'type': 'array', 'items': _extract_schema(fields)}},
+        'required': ['items'],
+    }
+
+
+def _extract_list_prompt(items_html):
+    parts = [f'### 항목 {i + 1} ###\n{_strip_html_noise(h)}' for i, h in enumerate(items_html)]
+    return (
+        f'아래는 한 페이지 안에 나란히 있던 반복 항목 {len(items_html)}개다. '
+        f'각 항목에서 필드 값을 추출해서, 입력 순서와 똑같은 순서로 items 배열에 하나씩 담아줘.\n\n'
+        + '\n\n'.join(parts)
+    )
+
+
+def extract_list_fields(items_html, fields, api_key, provider='anthropic', model=None, max_items_per_call=20):
+    """반복되는 항목(pattern_detect.detect_repeating_blocks 결과) 여러 개를 한 번에 추출한다.
+
+    항목이 많으면(max_items_per_call 초과) 여러 번에 나눠 부르지만, 그래도
+    '항목 하나당 호출 1번'보다는 훨씬 적은 횟수다 (20개씩 묶으면 100개 항목도
+    호출 5번). 한 묶음이 실패해도 나머지 묶음은 계속 진행한다."""
+    if not fields or not items_html:
+        return []
+    all_rows = []
+    for i in range(0, len(items_html), max_items_per_call):
+        chunk = items_html[i:i + max_items_per_call]
+        model_ = model or DEFAULT_MODELS[provider]
+        schema = _extract_list_schema(fields)
+        prompt = _extract_list_prompt(chunk)
+        if provider == 'anthropic':
+            result = _anthropic_tool_call(api_key, model_, 'extract_list', _EXTRACT_DESCRIPTION, schema, prompt)
+        elif provider == 'openai':
+            result = _openai_tool_call(api_key, model_, 'extract_list', _EXTRACT_DESCRIPTION, schema, prompt)
+        elif provider == 'gemini':
+            result = _gemini_json_call(api_key, model_, schema, prompt)
+        else:
+            raise ValueError(f'알 수 없는 AI 프로바이더입니다: {provider!r}')
+        all_rows.extend((result or {}).get('items', []))
+    return all_rows
+
+
 def export_records(records, out_dir, base_name, formats):
     """records: [{field: value, ...}, ...]. formats: ['csv','json'] 중 선택.
     저장된 파일 경로 리스트를 돌려준다."""
@@ -277,13 +322,32 @@ def find_html_files(folder, max_files=None):
 def run_extraction(folder, fields, api_key, log_fn, provider='anthropic', model=None,
                     max_pages=50, export_formats=('csv',)):
     """folder 안의 모든 .html 파일을 순서대로 추출하고 export까지 한 번에 처리하는 헬퍼.
-    개별 페이지 실패는 건너뛰고 계속 진행한다 (전체 작업이 죽지 않게)."""
+    개별 페이지 실패는 건너뛰고 계속 진행한다 (전체 작업이 죽지 않게).
+
+    페이지 안에 반복되는 항목(상품 카드, 게시글 목록 등)이 있으면 그 페이지
+    하나에서 여러 행을 뽑아낸다 - pattern_detect가 AI 호출 없이 구조로 찾아내고,
+    실제 추출은 항목 개수와 무관하게 API 호출 1~2회로 끝난다(20개씩 묶어서).
+    반복 패턴이 없는 보통의 상세 페이지는 예전처럼 '페이지 1개 = 행 1개'다."""
+    import pattern_detect
     html_files = find_html_files(folder, max_pages)
     records = []
     for path in html_files:
         try:
             with open(path, 'r', encoding='utf-8', errors='replace') as f:
                 html = f.read()
+
+            blocks = pattern_detect.detect_repeating_blocks(html)
+            if blocks:
+                rows = extract_list_fields(blocks[0]['items_html'], fields, api_key,
+                                           provider=provider, model=model)
+                for i, row in enumerate(rows):
+                    row['_source_file'] = os.path.relpath(path, folder)
+                    row['_item_index'] = i + 1
+                records.extend(rows)
+                log_fn(f'[AI 추출] {os.path.basename(path)}: 반복되는 항목 {blocks[0]["count"]}개 감지, '
+                       f'{len(rows)}개 행 추출')
+                continue
+
             record = extract_fields(html, fields, api_key, provider=provider, model=model)
             record['_source_file'] = os.path.relpath(path, folder)
             records.append(record)

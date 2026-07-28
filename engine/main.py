@@ -19,6 +19,7 @@ import scheduler_win
 import smart_crawl
 import ai_extract
 import ai_scope
+import data_refine
 import preview
 
 
@@ -975,6 +976,101 @@ class AIExtractRunDialog(tk.Toplevel):
         self.on_run(config)
 
 
+class AIRefineDialog(tk.Toplevel):
+    """AI 추출로 뽑아낸 표를 자연어로 다듬는다. AIScopeRulesDialog와 같은
+    '제안받기 -> 미리보기 -> 적용' 흐름이라 배운 적 없어도 낯설지 않다.
+
+    AI는 코드를 짜지 않는다. data_refine의 정해진 안전한 연산(열 삭제/이동/
+    결측치 채우기/중복 제거/필터/정렬) 중에서 고르기만 하고, 실제 계산은
+    이 앱이 정확하게 수행한다 - 그래서 적용 전에 '몇 행이 몇 행으로, 어떤
+    열이 생기고 없어지는지'를 코드 없이 그대로 보여줄 수 있다."""
+
+    def __init__(self, parent, records, out_dir, settings, log_fn):
+        super().__init__(parent)
+        self.title(t('dialog_refine_title'))
+        self.configure(bg=BG)
+        self.geometry('560x520')
+        self.minsize(460, 420)
+        self.resizable(True, True)
+        self.transient(parent)
+        self.grab_set()
+        self.records = records
+        self.out_dir = out_dir
+        self.settings = settings
+        self.log_fn = log_fn
+        self._pending_records = None
+
+        outer = make_scrollable(self)
+        outer.configure(padding=20)
+        ttk.Label(outer, text=t('dialog_refine_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 4))
+        ttk.Label(outer, text=t('caption_refine_intro', n=len(records)), style='Sub.TLabel',
+                  wraplength=500, justify='left').pack(anchor='w', pady=(0, 12))
+
+        ttk.Label(outer, text=t('label_refine_instruction'), style='MutedRoot.TLabel').pack(anchor='w')
+        self.instruction_text = tk.Text(outer, height=2, bg=PANEL_LIGHT, fg=FG, insertbackground=FG,
+                                        relief='flat', font=(FONTS['mono'], 10), highlightthickness=1,
+                                        highlightbackground=BORDER, highlightcolor=ACCENT, padx=6, pady=4)
+        self.instruction_text.pack(fill='x', pady=(4, 2))
+        ttk.Label(outer, text=t('caption_refine_examples'), style='Caption.TLabel',
+                  wraplength=500, justify='left').pack(anchor='w')
+
+        RoundedButton(outer, t('btn_propose_refine'), command=self._on_propose, variant='neutral').pack(
+            anchor='w', pady=(10, 0))
+
+        preview_box = tk.Frame(outer, bg=PANEL_LIGHT, highlightbackground=BORDER, highlightthickness=1)
+        preview_box.pack(fill='x', pady=(14, 0))
+        self.preview_var = tk.StringVar(value='')
+        tk.Label(preview_box, textvariable=self.preview_var, bg=PANEL_LIGHT, fg=FG,
+                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=480, justify='left', padx=12, pady=10).pack(anchor='w')
+
+        btn_frame = ttk.Frame(outer)
+        btn_frame.pack(fill='x', pady=(16, 0))
+        self.apply_btn = RoundedButton(btn_frame, t('btn_apply_refine'), command=self._on_apply, variant='accent')
+        self.apply_btn.set_enabled(False)
+        self.apply_btn.pack(side='right', padx=(6, 0))
+        RoundedButton(btn_frame, t('btn_skip'), command=self.destroy, variant='ghost').pack(side='right')
+
+    def _on_propose(self):
+        instruction = self.instruction_text.get('1.0', 'end').strip()
+        if not instruction:
+            self.log_fn(t('warn_refine_need_instruction'))
+            return
+        ai_config = get_active_ai_config(self.settings)
+        if not ai_config.get('api_key'):
+            self.log_fn(t('warn_need_api_key'))
+            return
+        try:
+            plan = data_refine.propose_refine_plan(
+                instruction, self.records, ai_config['api_key'], provider=ai_config['provider'])
+        except Exception as e:
+            self.log_fn(t('warn_refine_failed', e=e))
+            return
+
+        operations = plan.get('operations', [])
+        new_records, warnings = data_refine.apply_refine_plan(self.records, operations)
+        summary = data_refine.summarize_change(self.records, new_records)
+        self._pending_records = new_records
+
+        lines = [plan.get('explanation', '').strip() or t('preview_refine_none')]
+        lines.append(t('preview_refine_summary', rows_before=summary['rows_before'], rows_after=summary['rows_after']))
+        if summary['columns_added']:
+            lines.append(t('preview_columns_added', cols=', '.join(summary['columns_added'])))
+        if summary['columns_removed']:
+            lines.append(t('preview_columns_removed', cols=', '.join(summary['columns_removed'])))
+        if warnings:
+            lines.append(t('preview_refine_warnings', warnings='; '.join(warnings)))
+        self.preview_var.set('\n'.join(lines))
+        self.apply_btn.set_enabled(bool(operations))
+
+    def _on_apply(self):
+        if not self._pending_records:
+            return
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        saved = ai_extract.export_records(self._pending_records, self.out_dir, f'refined_{timestamp}', ['csv', 'json'])
+        self.log_fn(t('log_refine_applied', n=len(saved)))
+        self.destroy()
+
+
 class AIScopeRulesDialog(tk.Toplevel):
     """'추가 규칙' 옆의 AI 도우미. 자연어 목표 + 링크 샘플을 API 호출 1회로 보내서
     HTTrack 필터 규칙(+/-)을 제안받는다 - 사이트 크기와 무관하게 비용이 고정된다."""
@@ -1795,6 +1891,13 @@ class MirrorXApp:
         self.open_folder_btn.set_enabled(False)
         self.open_folder_btn.pack(side='right')
 
+        # 받아온 결과에서 AI로 데이터를 뽑아내는 진입점. '결과 폴더 열기'와 똑같은
+        # 시점(작업이 끝나 폴더가 생겼을 때)에만 눌리게 한다.
+        self.ai_extract_btn = RoundedButton(head, f"🤖 {t('btn_ai_extract')}", command=self._open_ai_extract_dialog,
+                                            variant='ghost', page_bg=PANEL, padx=13, pady=7)
+        self.ai_extract_btn.set_enabled(False)
+        self.ai_extract_btn.pack(side='right', padx=(0, 8))
+
         # height는 '요청 크기'일 뿐이고 실제로는 남는 공간을 채운다. 기본값(24줄)을 두면
         # 창의 최소 높이가 불필요하게 커지므로 작게 잡아둔다.
         self.log_text = scrolledtext.ScrolledText(
@@ -2127,8 +2230,16 @@ class MirrorXApp:
         save_projects(self.projects)
         self._refresh_projects_panel()
 
-    def _open_ai_extract_dialog(self, record):
-        out_dir = os.path.join(record['base_path'], record['name'])
+    def _open_ai_extract_dialog(self, record=None):
+        # 버튼 하나로 '방금 끝난 작업의 결과 폴더'를 대상으로 삼는다 -
+        # '결과 폴더 열기'와 똑같은 방식으로 경로를 구한다.
+        if record is not None:
+            out_dir = os.path.join(record['base_path'], record['name'])
+        else:
+            out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
+        if not os.path.isdir(out_dir):
+            self._log(t('warn_folder_not_found'))
+            return
         AIExtractRunDialog(self.root, out_dir, self.settings, log_fn=self._log,
                             on_run=lambda config: self._start_ai_extract_thread(out_dir, config))
 
@@ -2143,12 +2254,20 @@ class MirrorXApp:
         self._log(t('log_ai_extract_started'))
 
         def worker():
-            ai_extract.run_extraction(
+            records, saved_paths = ai_extract.run_extraction(
                 out_dir, config['fields'], ai_config['api_key'], provider=ai_config['provider'],
                 log_fn=lambda msg: self.msg_queue.put(('log', msg)),
                 max_pages=200, export_formats=config['export_formats'])
+            # 뽑아낸 표를 자연어로 다듬는 다음 단계를 곧바로 이어서 제안한다
+            # (버튼을 새로 찾아 누를 필요 없이, 방금 나온 결과 위에서 바로).
+            if records:
+                self.msg_queue.put(('ai_extract_done', records, out_dir))
 
         threading.Thread(target=worker, daemon=True).start()
+
+    def _on_ai_extract_done(self, records, out_dir):
+        self._log(t('log_ai_extract_offer_refine', n=len(records)))
+        AIRefineDialog(self.root, records, out_dir, self.settings, log_fn=self._log)
 
     # ---------------- 동작 ----------------
     def _open_preferences(self):
@@ -2350,6 +2469,7 @@ class MirrorXApp:
         self.start_button.set_running(True)
         self._set_busy(True)
         self.open_folder_btn.set_enabled(False)
+        self.ai_extract_btn.set_enabled(False)
         self._clear_log()
         self._reset_progress_ui()
         self._log(t('log_smart_started'))
@@ -2405,6 +2525,7 @@ class MirrorXApp:
         self._log(t('log_smart_done', n=pages) if ok else t('log_smart_failed'))
         if ok:
             self.open_folder_btn.set_enabled(True)
+            self.ai_extract_btn.set_enabled(True)
         self._finish_project_record('success' if ok else 'errors')
         if self.power_action_var.get() == 'on_complete' and not self._user_stopped:
             self._schedule_shutdown(60, t('reason_on_complete'))
@@ -2428,6 +2549,7 @@ class MirrorXApp:
         self.start_button.set_running(True)
         self._set_busy(True)
         self.open_folder_btn.set_enabled(False)
+        self.ai_extract_btn.set_enabled(False)
         self._clear_log()
         self._reset_progress_ui()
 
@@ -2537,6 +2659,8 @@ class MirrorXApp:
                     self._push_smart_progress(msg[1])
                 elif kind == 'smart_done':
                     self._on_smart_done(msg[1])
+                elif kind == 'ai_extract_done':
+                    self._on_ai_extract_done(msg[1], msg[2])
         except queue.Empty:
             pass
         self.root.after(80, self._poll_queue)
@@ -2556,14 +2680,17 @@ class MirrorXApp:
         if isinstance(result, int) and result == 0 and engine_errors == 0:
             self._log(f"\n[{ts}] {t('log_success')}")
             self.open_folder_btn.set_enabled(True)
+            self.ai_extract_btn.set_enabled(True)
             project_status = 'success'
         elif isinstance(result, int) and result == 0 and engine_errors > 0:
             self._log(f"\n[{ts}] {t('log_done_with_errors', n=engine_errors)}")
             self.open_folder_btn.set_enabled(True)
+            self.ai_extract_btn.set_enabled(True)
             project_status = 'errors'
         elif isinstance(result, int):
             self._log(f"\n[{ts}] {t('log_done_code', code=result)}")
             self.open_folder_btn.set_enabled(True)
+            self.ai_extract_btn.set_enabled(True)
             project_status = 'errors'
         else:
             self._log(f"\n[{ts}] {t('log_fatal_error', result=result)}")

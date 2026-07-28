@@ -390,6 +390,29 @@ STRINGS = {
         'log_ai_extract_started': 'Starting AI extraction...',
         'warn_ai_skip_no_key': '[AI Extraction] Skipped — no API key set.',
 
+        'log_ai_extract_offer_refine': '{n} row(s) extracted. Want to clean up the table in plain English?',
+        'dialog_refine_title': 'Clean up the table',
+        'caption_refine_intro': (
+            "You have {n} row(s). Describe what to change, in your own words — "
+            "no formulas needed."
+        ),
+        'label_refine_instruction': 'What do you want to change?',
+        'caption_refine_examples': (
+            'Examples: "drop column B and put column C there instead" · '
+            '"fill missing prices with the most common value" · "remove duplicate rows"'
+        ),
+        'btn_propose_refine': 'Suggest a plan',
+        'btn_apply_refine': 'Apply',
+        'btn_skip': 'Skip',
+        'warn_refine_need_instruction': '[Warning] Please describe what to change first.',
+        'warn_refine_failed': '[Warning] Could not get a suggestion: {e}',
+        'preview_refine_summary': 'Rows: {rows_before} -> {rows_after}',
+        'preview_columns_added': 'Columns added: {cols}',
+        'preview_columns_removed': 'Columns removed: {cols}',
+        'preview_refine_warnings': 'Skipped: {warnings}',
+        'preview_refine_none': "Couldn't find a matching change for that request. Try rephrasing it.",
+        'log_refine_applied': 'Cleaned-up table saved ({n} file(s)).',
+
         'btn_ai_scope_rules': 'AI Rule Suggestions',
         'dialog_ai_scope_title': 'AI Download Scope Rules',
         'label_scope_goal': 'What do you want to download?',
@@ -786,6 +809,26 @@ STRINGS = {
         'warn_need_fields': '[경고] 추출할 필드를 최소 하나 이상 추가해주세요!',
         'log_ai_extract_started': 'AI 추출을 시작합니다...',
         'warn_ai_skip_no_key': '[AI 추출] API 키가 설정되어 있지 않아 건너뜁니다.',
+
+        'log_ai_extract_offer_refine': '{n}개 행을 뽑았어요. 이 표를 자연어로 다듬어볼까요?',
+        'dialog_refine_title': '표 다듬기',
+        'caption_refine_intro': '{n}개 행이 있어요. 수식 몰라도 돼요 - 원하는 걸 그냥 말로 설명해주세요.',
+        'label_refine_instruction': '무엇을 바꾸고 싶으신가요?',
+        'caption_refine_examples': (
+            '예: "B열은 빼고 C열을 B열에 넣어줘" · "가격 결측치는 최빈값으로 채워줘" · '
+            '"중복된 행은 지워줘"'
+        ),
+        'btn_propose_refine': '방법 제안받기',
+        'btn_apply_refine': '적용',
+        'btn_skip': '건너뛰기',
+        'warn_refine_need_instruction': '[경고] 먼저 무엇을 바꿀지 설명해주세요.',
+        'warn_refine_failed': '[경고] 제안을 받지 못했습니다: {e}',
+        'preview_refine_summary': '행: {rows_before}개 -> {rows_after}개',
+        'preview_columns_added': '추가된 열: {cols}',
+        'preview_columns_removed': '없어진 열: {cols}',
+        'preview_refine_warnings': '건너뜀: {warnings}',
+        'preview_refine_none': '요청에 맞는 변경을 찾지 못했어요. 다르게 설명해보세요.',
+        'log_refine_applied': '다듬은 표를 저장했어요 ({n}개 파일).',
 
         'btn_ai_scope_rules': 'AI로 규칙 제안받기',
         'dialog_ai_scope_title': 'AI 다운로드 범위 규칙',
