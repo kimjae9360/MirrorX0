@@ -1,27 +1,30 @@
-"""HTTrack의 정적 크롤링으로는 받아지지 않는 JS 렌더링/SPA 페이지를 위한 보조 크롤러.
+"""자바스크립트로 그려지는 사이트를 '오프라인에서 그대로 열리는' 사본으로 받는다.
 
-사용자 PC에 이미 설치된 Chrome을 Playwright(channel='chrome')로 그대로 띄워서
-페이지를 방문하고, 지연 로딩 콘텐츠가 나오도록 끝까지 스크롤한 뒤, 렌더링된 HTML을
-저장한다. Chromium을 따로 내려받지 않으므로 사용자 PC에 Chrome이 없으면 동작하지
-않는다 - 이 경우 예외 없이 로그만 남기고 조용히 종료한다 (예약 작업이 깨지지 않게).
+HTTrack은 HTML 원문만 읽기 때문에 React/Vue 같은 사이트를 받으면 빈 껍데기가 된다.
+여기서는 사용자 PC에 설치된 Chrome을 Playwright로 띄워 실제로 화면을 그린 뒤 저장한다.
 
-주의: 이 버전은 지정된 URL들을 각각 방문해 렌더링 결과를 저장하는 수준이며,
-HTTrack처럼 링크를 재귀적으로 따라가며 사이트 전체를 받는 기능은 없다.
+동작 순서:
+    1. 페이지 방문 -> 끝까지 스크롤(지연 로딩 콘텐츠를 끌어냄) -> 렌더링된 HTML 확보
+    2. 그 사이 브라우저가 받은 모든 응답(CSS/JS/이미지/폰트)을 response 이벤트로
+       가로채 host/path 구조 그대로 저장. 자바스크립트가 나중에 요청하는 것까지
+       잡히므로, 정적 파서로는 불가능한 자산까지 전부 모인다.
+    3. 링크를 따라 다음 페이지로 (max_pages / 깊이 제한까지)
+    4. 전부 받은 뒤 HTML/CSS 안의 주소를 로컬 상대경로로 치환
+
+이렇게 해야 결과 폴더의 index.html을 더블클릭했을 때 원래 모습대로 열린다.
+(예전에는 HTML만 저장해서 스타일이 다 깨진 채로 열렸다.)
+
+Chrome이 없으면 예외를 내지 않고 로그만 남기고 종료한다(예약 작업이 깨지지 않게).
 """
 import os
 import re
+import hashlib
 import urllib.parse
 
-_FILENAME_SAFE_RE = re.compile(r'[^A-Za-z0-9_.-]+')
-
-
-def _url_to_filename(url):
-    parsed = urllib.parse.urlparse(url)
-    path = parsed.path.strip('/') or 'index'
-    name = _FILENAME_SAFE_RE.sub('_', f'{parsed.netloc}_{path}')
-    if not name.lower().endswith('.html'):
-        name += '.html'
-    return name
+# 윈도우 파일 이름에 못 쓰는 문자들
+_ILLEGAL_CHARS_RE = re.compile(r'[<>:"|?*\\\x00-\x1f]')
+# CSS 안의 url(...) 을 찾는다
+_CSS_URL_RE = re.compile(r'url\(\s*([^)]+?)\s*\)', re.IGNORECASE)
 
 
 def _cookie_domains_for(urls):
@@ -75,6 +78,199 @@ def _inject_local_cookies(page, urls, log_fn):
         log_fn(f'[스마트 크롤링] 브라우저 로그인을 사용합니다 (이 사이트 쿠키 {len(cookies)}개).')
     except Exception as e:
         log_fn(f'[스마트 크롤링] 쿠키 주입 실패: {e}')
+
+
+def _safe_segment(seg, max_len=90):
+    """URL 조각 하나를 윈도우 파일/폴더 이름으로 쓸 수 있게 다듬는다.
+
+    윈도우에서 못 쓰는 문자(< > : " | ? * \\)를 바꾸고, 끝의 공백/점을 없애고,
+    너무 길면 잘라내되 뒤에 해시를 붙여 서로 겹치지 않게 한다.
+    '..' 같은 조각도 '_'로 바꾸므로 저장 폴더 밖으로 새어나갈 수 없다."""
+    seg = urllib.parse.unquote(seg)
+    seg = _ILLEGAL_CHARS_RE.sub('_', seg).strip(' .')
+    if seg in ('', '.', '..'):
+        return '_'
+    if len(seg) > max_len:
+        stem, dot, ext = seg.rpartition('.')
+        tag = hashlib.md5(seg.encode('utf-8')).hexdigest()[:8]
+        if dot and len(ext) <= 8:
+            seg = f'{stem[:max_len - len(ext) - 10]}_{tag}.{ext}'
+        else:
+            seg = f'{seg[:max_len - 9]}_{tag}'
+    return seg
+
+
+def local_path_for(url, out_dir, content_type=''):
+    """주소를 '저장 폴더 안의 실제 파일 경로'로 바꾼다.
+
+    HTTrack과 같은 방식으로 host/path 구조를 그대로 만든다.
+        https://site.com/a/b.css        -> out_dir/site.com/a/b.css
+        https://site.com/blog/          -> out_dir/site.com/blog/index.html
+        https://site.com/api?page=2     -> out_dir/site.com/api_1a2b3c4d
+    쿼리스트링이 다르면 다른 파일이므로 이름 뒤에 짧은 해시를 붙여 구분한다."""
+    parsed = urllib.parse.urlsplit(url)
+    host = _safe_segment(parsed.netloc or 'localhost')
+    path = parsed.path or '/'
+    if path.endswith('/'):
+        path += 'index.html'
+    segments = [_safe_segment(s) for s in path.split('/') if s] or ['index.html']
+
+    if parsed.query:
+        tag = hashlib.md5(parsed.query.encode('utf-8')).hexdigest()[:8]
+        stem, dot, ext = segments[-1].rpartition('.')
+        segments[-1] = f'{stem}_{tag}.{ext}' if dot else f'{segments[-1]}_{tag}'
+
+    # 확장자가 없는 HTML 주소는 .html을 붙여야 브라우저에서 바로 열린다.
+    # (덤으로 /a 와 /a/b 가 파일-폴더로 충돌하는 것도 대부분 막아준다)
+    if '.' not in segments[-1] and 'html' in content_type:
+        segments[-1] += '.html'
+
+    return os.path.join(out_dir, host, *segments)
+
+
+class _MirrorWriter:
+    """브라우저가 받아온 것들을 디스크에 저장하고, 주소↔로컬경로 대응표를 들고 있는다.
+
+    Playwright의 response 이벤트를 듣기 때문에 자바스크립트가 나중에 불러오는
+    이미지·CSS·폰트까지 전부 잡힌다. 정적 HTML만 훑는 방식으로는 불가능한 부분이다."""
+
+    def __init__(self, out_dir, log_fn):
+        self.out_dir = out_dir
+        self.log_fn = log_fn
+        self.url_to_path = {}     # 절대 주소 -> 로컬 절대 경로
+        self.bytes_saved = 0
+        self.asset_count = 0
+        self._failed = set()
+
+    def _write(self, path, data):
+        """파일을 쓴다. 경로 일부가 이미 파일이라 폴더를 못 만드는 경우
+        (예: /a 를 파일로 저장했는데 /a/b 가 또 오는 경우) 이름을 바꿔 피한다."""
+        try:
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+        except (NotADirectoryError, FileExistsError, OSError):
+            path = os.path.join(self.out_dir, '_conflict',
+                                hashlib.md5(path.encode('utf-8')).hexdigest()[:16])
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, 'wb') as f:
+            f.write(data)
+        return path
+
+    def on_response(self, response):
+        """응답이 올 때마다 호출된다. HTML은 여기서 저장하지 않는다 -
+        자바스크립트 실행이 끝난 '완성된' 화면을 나중에 따로 저장하기 때문."""
+        url = response.url.split('#')[0]
+        if not url.startswith(('http://', 'https://')) or url in self.url_to_path:
+            return
+        content_type = (response.headers or {}).get('content-type', '').lower()
+        target = local_path_for(url, self.out_dir, content_type)
+
+        if 'html' in content_type:
+            self.url_to_path[url] = target      # 링크 치환용으로 자리만 잡아둔다
+            return
+        try:
+            body = response.body()
+        except Exception:
+            self._failed.add(url)               # 리다이렉트/취소된 요청 등
+            return
+        try:
+            self.url_to_path[url] = self._write(target, body)
+            self.bytes_saved += len(body)
+            self.asset_count += 1
+        except Exception as e:
+            self._failed.add(url)
+            self.log_fn(f'[스마트 크롤링] 자산 저장 실패 ({url}): {e}')
+
+    def save_page(self, url, html):
+        """렌더링이 끝난 페이지 HTML을 저장하고 그 경로를 대응표에 넣는다."""
+        url = url.split('#')[0]
+        path = local_path_for(url, self.out_dir, 'text/html')
+        path = self._write(path, html.encode('utf-8', errors='replace'))
+        self.url_to_path[url] = path
+        self.bytes_saved += len(html.encode('utf-8', errors='ignore'))
+        return path
+
+
+def _to_relative(from_file, to_file):
+    """저장된 파일끼리 서로를 가리키는 상대 경로를 만든다 (폴더를 통째로 옮겨도 살아 있게)."""
+    rel = os.path.relpath(to_file, os.path.dirname(from_file))
+    return urllib.parse.quote(rel.replace(os.sep, '/'))
+
+
+def _rewrite_css(text, base_url, page_file, url_to_path):
+    """CSS 안의 url(...) 을 로컬 경로로 바꾼다."""
+    def repl(m):
+        raw = m.group(1).strip('\'"')
+        if raw.startswith(('data:', '#')):
+            return m.group(0)
+        absolute = urllib.parse.urljoin(base_url, raw).split('#')[0]
+        target = url_to_path.get(absolute)
+        return f'url({_to_relative(page_file, target)})' if target else m.group(0)
+    return _CSS_URL_RE.sub(repl, text)
+
+
+def rewrite_saved_files(writer, page_files, log_fn):
+    """크롤링이 끝난 뒤, 저장한 HTML/CSS 안의 주소를 로컬 경로로 바꾼다.
+
+    크롤링 도중이 아니라 '전부 받은 뒤에' 하는 이유:
+    아직 안 받은 페이지로 가는 링크도 나중에 받고 나면 이어져야 하기 때문이다.
+    대응표에 없는 주소(우리가 안 받은 것)는 원래 주소 그대로 둬서 인터넷으로 나간다."""
+    from bs4 import BeautifulSoup
+
+    url_to_path = writer.url_to_path
+    rewritten = 0
+
+    # 1) HTML - 태그의 주소 속성들
+    for page_url, page_file in page_files:
+        try:
+            with open(page_file, encoding='utf-8', errors='replace') as f:
+                soup = BeautifulSoup(f.read(), 'lxml')
+
+            for tag, attr in (('a', 'href'), ('link', 'href'), ('img', 'src'), ('script', 'src'),
+                              ('source', 'src'), ('video', 'poster'), ('iframe', 'src'),
+                              ('embed', 'src'), ('audio', 'src')):
+                for el in soup.find_all(tag):
+                    raw = el.get(attr)
+                    if not raw or raw.startswith(('data:', 'javascript:', 'mailto:', '#')):
+                        continue
+                    absolute = urllib.parse.urljoin(page_url, raw).split('#')[0]
+                    target = url_to_path.get(absolute)
+                    if target:
+                        el[attr] = _to_relative(page_file, target)
+
+            # 반응형 이미지(srcset)는 "주소 1x, 주소 2x" 형태라 조각별로 바꾼다
+            for el in soup.find_all(srcset=True):
+                parts = []
+                for chunk in el['srcset'].split(','):
+                    bits = chunk.strip().split(' ', 1)
+                    absolute = urllib.parse.urljoin(page_url, bits[0]).split('#')[0]
+                    target = url_to_path.get(absolute)
+                    head = _to_relative(page_file, target) if target else bits[0]
+                    parts.append(' '.join([head] + bits[1:]))
+                el['srcset'] = ', '.join(parts)
+
+            for el in soup.find_all('style'):
+                if el.string:
+                    el.string = _rewrite_css(el.string, page_url, page_file, url_to_path)
+
+            with open(page_file, 'w', encoding='utf-8') as f:
+                f.write(str(soup))
+            rewritten += 1
+        except Exception as e:
+            log_fn(f'[스마트 크롤링] 링크 치환 실패 ({page_file}): {e}')
+
+    # 2) 따로 받은 .css 파일 안의 url(...)
+    for url, path in list(url_to_path.items()):
+        if not path.lower().endswith('.css') or not os.path.exists(path):
+            continue
+        try:
+            with open(path, encoding='utf-8', errors='replace') as f:
+                text = f.read()
+            with open(path, 'w', encoding='utf-8') as f:
+                f.write(_rewrite_css(text, url, path, url_to_path))
+        except Exception:
+            pass
+
+    return rewritten
 
 
 def _auto_scroll(page, max_steps=30, pause_ms=300):
@@ -150,7 +346,14 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                 browser = p.chromium.launch(headless=True)
 
             page = browser.new_page()
-            
+
+            # 브라우저가 받아오는 모든 것(CSS/JS/이미지/폰트)을 저장한다.
+            # 자바스크립트가 나중에 요청하는 것까지 잡히기 때문에, 이걸 해야
+            # 오프라인에서 화면이 원래 모습대로 열린다.
+            writer = _MirrorWriter(out_dir, log_fn)
+            page.on('response', writer.on_response)
+            page_files = []           # [(페이지 주소, 저장된 파일 경로)]
+
             if job.get('use_local_cookies', False):
                 _inject_local_cookies(page, urls, log_fn)
 
@@ -159,14 +362,13 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
             visited_urls = set()
             visited_count = 0
             error_count = 0
-            bytes_saved = 0
 
             def report(current_url=''):
                 if progress_fn:
                     progress_fn({
                         'visited': visited_count, 'max_pages': max_pages,
                         'queued': len(queue), 'errors': error_count,
-                        'bytes_saved': bytes_saved, 'current_url': current_url,
+                        'bytes_saved': writer.bytes_saved, 'current_url': current_url,
                     })
 
             while queue and visited_count < max_pages:
@@ -185,11 +387,11 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                     _auto_scroll(page)
                     html = page.content()
 
-                    out_path = os.path.join(out_dir, _url_to_filename(current_url))
-                    with open(out_path, 'w', encoding='utf-8') as f:
-                        f.write(html)
+                    # 렌더링이 끝난 화면을 host/path 구조 그대로 저장한다
+                    # (링크 치환은 전부 받은 뒤 한 번에 한다)
+                    page_files.append((current_url.split('#')[0],
+                                       writer.save_page(current_url, html)))
                     visited_count += 1
-                    bytes_saved += len(html.encode('utf-8', errors='ignore'))
 
                     if current_depth < max_depth:
                         try:
@@ -210,7 +412,16 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                 report(current_url)
 
             browser.close()
-        log_fn(f'[스마트 크롤링] 완료: {visited_count} 페이지 저장 (목표 최대치 {max_pages})')
+
+        # 다 받은 뒤에 링크를 로컬 경로로 바꾼다.
+        if page_files:
+            log_fn('[스마트 크롤링] 링크를 오프라인용으로 바꾸는 중…')
+            rewrite_saved_files(writer, page_files, log_fn)
+
+        log_fn(f'[스마트 크롤링] 완료: 페이지 {visited_count}개, '
+               f'함께 받은 파일 {writer.asset_count}개 (목표 최대치 {max_pages})')
+        if page_files:
+            log_fn(f'[스마트 크롤링] 이 파일을 브라우저로 열면 됩니다: {page_files[0][1]}')
         return visited_count > 0
     except Exception as e:
         log_fn(f'[스마트 크롤링] 오류: {e}')
