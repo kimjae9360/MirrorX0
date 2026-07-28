@@ -194,7 +194,7 @@ def draw_donut_chart(canvas, success, errors, width, height):
 
 # 화면 부품(둥근 카드/버튼/토글/원형 시작 버튼 등)은 widgets.py로 분리했다.
 from widgets import (  # noqa: F401
-    make_scrollable, _rounded_rect_points, lerp_color,
+    make_scrollable, combo_width, display_width, _rounded_rect_points, lerp_color,
     draw_vertical_gradient, draw_soft_shadow,
     BrandHeader, SegmentedControl, CircularStartButton,
     RoundedCard, RoundedButton, ToggleSwitch,
@@ -267,8 +267,9 @@ class PreferencesDialog(tk.Toplevel):
         self.robots_var = tk.StringVar(value=next(
             (label for code, label in robots_options if code == str(settings['robots'])), robots_options[2][1]))
         self._row(sec3, '🤖', t('label_robots'), t('caption_robots'),
-                  lambda p: ttk.Combobox(p, textvariable=self.robots_var, state='readonly', width=16,
-                                         values=[label for _, label in robots_options]).pack())
+                  lambda p: ttk.Combobox(p, textvariable=self.robots_var, state='readonly',
+                                         values=[label for _, label in robots_options],
+                                         width=combo_width([l for _, l in robots_options])).pack())
 
         self.external_var = tk.BooleanVar(value=bool(settings.get('external_links', False)))
         self._row(sec3, '🔗', t('label_external_links'), t('caption_external_links'),
@@ -289,8 +290,9 @@ class PreferencesDialog(tk.Toplevel):
         current_lang = settings.get('language', 'en')
         self.lang_var = tk.StringVar(value=LANG_DISPLAY.get(current_lang, LANG_DISPLAY['en']))
         self._row(sec5, '🌐', t('label_language'), t('caption_language'),
-                  lambda p: ttk.Combobox(p, textvariable=self.lang_var, state='readonly', width=14,
-                                         values=[LANG_DISPLAY['en'], LANG_DISPLAY['ko']]).pack())
+                  lambda p: ttk.Combobox(p, textvariable=self.lang_var, state='readonly',
+                                         values=[LANG_DISPLAY['en'], LANG_DISPLAY['ko']],
+                                         width=combo_width(list(LANG_DISPLAY.values()))).pack())
 
         # --- 고급 ---
         sec6 = self._section(outer, t('section_advanced'))
@@ -330,8 +332,9 @@ class PreferencesDialog(tk.Toplevel):
             link_format_options[0][1]))
         self._link_format_options = link_format_options
         self._row(sec6, '🔀', t('label_link_format'), t('caption_link_format'),
-                  lambda p: ttk.Combobox(p, textvariable=self.link_format_var, state='readonly', width=16,
-                                         values=[label for _, label in link_format_options]).pack())
+                  lambda p: ttk.Combobox(p, textvariable=self.link_format_var, state='readonly',
+                                         values=[label for _, label in link_format_options],
+                                         width=combo_width([l for _, l in link_format_options])).pack())
 
         self.conn_per_sec_var = tk.StringVar(value=str(settings.get('conn_per_sec', 0)))
         self._row(sec6, '⚡', t('label_conn_per_sec'), t('caption_conn_per_sec'),
@@ -357,8 +360,9 @@ class PreferencesDialog(tk.Toplevel):
             (label for code, label in self._provider_options if code == current_provider),
             self._provider_options[0][1]))
         self._row(sec7, '🧠', t('label_ai_provider'), t('caption_ai_provider'),
-                  lambda p: ttk.Combobox(p, textvariable=self.ai_provider_var, state='readonly', width=18,
-                                         values=[label for _, label in self._provider_options]).pack())
+                  lambda p: ttk.Combobox(p, textvariable=self.ai_provider_var, state='readonly',
+                                         values=[label for _, label in self._provider_options],
+                                         width=combo_width([l for _, l in self._provider_options])).pack())
 
         self.anthropic_key_var = tk.StringVar(value=settings.get('anthropic_api_key', ''))
         self._row(sec7, '🔑', t('label_api_key_anthropic'), None,
@@ -820,7 +824,8 @@ class AIExtractPanel:
         type_var = tk.StringVar(value=type_ if type_ in self.TYPE_OPTIONS else 'string')
         ttk.Entry(row, textvariable=name_var, width=16).pack(side='left', padx=(0, 4))
         ttk.Entry(row, textvariable=label_var, width=18).pack(side='left', padx=(0, 4))
-        ttk.Combobox(row, textvariable=type_var, state='readonly', values=self.TYPE_OPTIONS, width=8).pack(
+        ttk.Combobox(row, textvariable=type_var, state='readonly', values=self.TYPE_OPTIONS,
+                     width=combo_width(self.TYPE_OPTIONS)).pack(
             side='left', padx=(0, 4))
         entry = [name_var, label_var, type_var, row]
         RoundedButton(row, '×', command=lambda: self._remove_field_row(entry), variant='ghost',

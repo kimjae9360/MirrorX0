@@ -24,6 +24,22 @@ from theme import *  # noqa: F403  (색상/글자크기 상수)
 from theme import FONTS
 
 
+def display_width(text):
+    """글자가 화면에서 차지하는 '칸 수'를 센다.
+    한글·한자·일본어는 영문 알파벳 두 개만큼 넓으므로 2로 센다."""
+    return sum(2 if ord(ch) > 0x1100 else 1 for ch in text)
+
+
+def combo_width(values, extra=3, minimum=10, maximum=42):
+    """드롭다운 폭을 '가장 긴 항목'에 맞춰 계산한다.
+
+    ttk.Combobox의 width는 픽셀이 아니라 문자 수라서, 숫자를 손으로 박아두면
+    언어를 바꿨을 때 잘린다. 실제로 영어에서 'Ignore and collect everything'(29칸)이
+    width=16에 걸려 잘리는 문제가 있었다. 그래서 항목에서 계산해 쓴다."""
+    longest = max((display_width(v) for v in values), default=minimum)
+    return max(minimum, min(maximum, longest + extra))
+
+
 def make_scrollable(parent, bg=BG):
     """parent를 스크롤 가능한 세로 영역으로 만들고, 내용을 채울 내부 프레임을 돌려준다.
     창/화면이 작아서 내용이 다 안 보일 때를 대비한 공통 처리 (환경설정 창과 미러링 탭에서 공용으로 씀)."""
