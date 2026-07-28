@@ -206,7 +206,11 @@ class PreferencesDialog(tk.Toplevel):
     행 패턴 + 행 사이 구분선으로 구성. pack 기반이라 grid 행 번호를 손으로 맞추다
     생기는 겹침 버그를 원천적으로 피한다."""
 
-    def __init__(self, parent, settings, on_save):
+    def __init__(self, parent, settings, on_save, mode='mirror'):
+        # mode='smart'면 HTTrack 전용 설정(연결/속도/정책/네트워크/고급)은 아예
+        # 안 만든다 - Playwright 기반 스마트 크롤링은 그 값들을 하나도 읽지 않으므로
+        # 보여줘 봐야 "바꿔도 아무 효과 없는 설정"이 될 뿐이다.
+        self.mode = mode
         super().__init__(parent)
         self.title(t('prefs_title'))
         self.configure(bg=BG)
@@ -243,11 +247,18 @@ class PreferencesDialog(tk.Toplevel):
         basic_zone = ttk.Frame(outer)
         basic_zone.pack(fill='x')
 
-        self._expert_btn = RoundedButton(outer, f"▸  {t('expert_show')}",
-                                         command=self._toggle_expert, variant='ghost')
-        self._expert_btn.pack(anchor='w', pady=(4, 10))
         self._expert_zone = ttk.Frame(outer)
         self._expert_open = False
+        if self.mode != 'smart':
+            self._expert_btn = RoundedButton(outer, f"▸  {t('expert_show')}",
+                                             command=self._toggle_expert, variant='ghost')
+            self._expert_btn.pack(anchor='w', pady=(4, 10))
+        else:
+            # 스마트 크롤링은 이 설정들을 하나도 읽지 않는다(Playwright는 연결 수/
+            # robots 정책/프록시 같은 HTTrack 전용 값과 무관하다). 그래서 버튼조차
+            # 안 만들고, 왜 없는지만 짧게 알려준다.
+            ttk.Label(outer, text=t('caption_expert_hidden_smart'), style='Sub.TLabel',
+                      wraplength=520, justify='left').pack(anchor='w', pady=(0, 10))
 
         # --- 기본: 언어 / 브라우저 로그인 ---
         sec_basic = self._section(basic_zone, t('section_basic'))
@@ -262,107 +273,109 @@ class PreferencesDialog(tk.Toplevel):
         self._row(sec_basic, '🍪', t('label_use_local_cookies'), t('caption_use_local_cookies'),
                   lambda p: ToggleSwitch(p, variable=self.use_local_cookies_var, page_bg=PANEL).pack())
 
-        # --- 연결 ---
-        sec1 = self._section(self._expert_zone, t('section_connection'))
-        self.ua_var = tk.StringVar(value=settings['user_agent'])
-        self._row(sec1, '🧭', t('label_user_agent'), t('caption_user_agent'),
-                  lambda p: ttk.Entry(p, textvariable=self.ua_var).pack(fill='x', ipady=3), full_width=True)
+        if self.mode != 'smart':
+            # --- 연결 ---
+            sec1 = self._section(self._expert_zone, t('section_connection'))
+            self.ua_var = tk.StringVar(value=settings['user_agent'])
+            self._row(sec1, '🧭', t('label_user_agent'), t('caption_user_agent'),
+                      lambda p: ttk.Entry(p, textvariable=self.ua_var).pack(fill='x', ipady=3), full_width=True)
 
-        self.conn_var = tk.StringVar(value=str(settings['connections']))
-        self._row(sec1, '🔌', t('label_connections'), t('caption_connections'),
-                  lambda p: ttk.Spinbox(p, from_=1, to=32, textvariable=self.conn_var, width=8).pack())
-        self.retry_var = tk.StringVar(value=str(settings['retries']))
-        self._row(sec1, '🔁', t('label_retries'), t('caption_retries'),
-                  lambda p: ttk.Spinbox(p, from_=0, to=10, textvariable=self.retry_var, width=8).pack())
+            self.conn_var = tk.StringVar(value=str(settings['connections']))
+            self._row(sec1, '🔌', t('label_connections'), t('caption_connections'),
+                      lambda p: ttk.Spinbox(p, from_=1, to=32, textvariable=self.conn_var, width=8).pack())
+            self.retry_var = tk.StringVar(value=str(settings['retries']))
+            self._row(sec1, '🔁', t('label_retries'), t('caption_retries'),
+                      lambda p: ttk.Spinbox(p, from_=0, to=10, textvariable=self.retry_var, width=8).pack())
 
-        # --- 속도 & 시간 ---
-        sec2 = self._section(self._expert_zone, t('section_speed_time'))
-        self.timeout_var = tk.StringVar(value=str(settings['timeout']))
-        self._row(sec2, '⏱', t('label_timeout'), t('caption_timeout'),
-                  lambda p: ttk.Spinbox(p, from_=5, to=600, increment=5, textvariable=self.timeout_var,
-                                        width=8).pack())
-        self.rate_var = tk.StringVar(value=str(settings['max_rate']))
-        self._row(sec2, '🚀', t('label_max_rate'), t('caption_max_rate'),
-                  lambda p: ttk.Spinbox(p, from_=0, to=100_000_000, increment=1000, textvariable=self.rate_var,
-                                        width=12).pack())
+            # --- 속도 & 시간 ---
+            sec2 = self._section(self._expert_zone, t('section_speed_time'))
+            self.timeout_var = tk.StringVar(value=str(settings['timeout']))
+            self._row(sec2, '⏱', t('label_timeout'), t('caption_timeout'),
+                      lambda p: ttk.Spinbox(p, from_=5, to=600, increment=5, textvariable=self.timeout_var,
+                                            width=8).pack())
+            self.rate_var = tk.StringVar(value=str(settings['max_rate']))
+            self._row(sec2, '🚀', t('label_max_rate'), t('caption_max_rate'),
+                      lambda p: ttk.Spinbox(p, from_=0, to=100_000_000, increment=1000, textvariable=self.rate_var,
+                                            width=12).pack())
 
-        # --- 정책 ---
-        sec3 = self._section(self._expert_zone, t('section_policy'))
-        robots_options = get_robots_options()
-        self.robots_var = tk.StringVar(value=next(
-            (label for code, label in robots_options if code == str(settings['robots'])), robots_options[2][1]))
-        self._row(sec3, '🤖', t('label_robots'), t('caption_robots'),
-                  lambda p: ttk.Combobox(p, textvariable=self.robots_var, state='readonly',
-                                         values=[label for _, label in robots_options],
-                                         width=combo_width([l for _, l in robots_options])).pack())
+            # --- 정책 ---
+            sec3 = self._section(self._expert_zone, t('section_policy'))
+            robots_options = get_robots_options()
+            self.robots_var = tk.StringVar(value=next(
+                (label for code, label in robots_options if code == str(settings['robots'])), robots_options[2][1]))
+            self._row(sec3, '🤖', t('label_robots'), t('caption_robots'),
+                      lambda p: ttk.Combobox(p, textvariable=self.robots_var, state='readonly',
+                                             values=[label for _, label in robots_options],
+                                             width=combo_width([l for _, l in robots_options])).pack())
 
-        self.external_var = tk.BooleanVar(value=bool(settings.get('external_links', False)))
-        self._row(sec3, '🔗', t('label_external_links'), t('caption_external_links'),
-                  lambda p: ToggleSwitch(p, variable=self.external_var, page_bg=PANEL).pack())
+            self.external_var = tk.BooleanVar(value=bool(settings.get('external_links', False)))
+            self._row(sec3, '🔗', t('label_external_links'), t('caption_external_links'),
+                      lambda p: ToggleSwitch(p, variable=self.external_var, page_bg=PANEL).pack())
 
-        # --- 네트워크 ---
-        sec4 = self._section(self._expert_zone, t('section_network'))
-        self.proxy_var = tk.StringVar(value=settings['proxy'])
-        self._row(sec4, '🛰', t('label_proxy'), t('caption_proxy'),
-                  lambda p: ttk.Entry(p, textvariable=self.proxy_var, width=32).pack(ipady=3))
+            # --- 네트워크 ---
+            sec4 = self._section(self._expert_zone, t('section_network'))
+            self.proxy_var = tk.StringVar(value=settings['proxy'])
+            self._row(sec4, '🛰', t('label_proxy'), t('caption_proxy'),
+                      lambda p: ttk.Entry(p, textvariable=self.proxy_var, width=32).pack(ipady=3))
 
-        # --- 고급 ---
-        sec6 = self._section(self._expert_zone, t('section_advanced'))
-        self.referer_var = tk.StringVar(value=settings.get('referer', ''))
-        self._row(sec6, '🔗', t('label_referer'), t('caption_referer'),
-                  lambda p: ttk.Entry(p, textvariable=self.referer_var).pack(fill='x', ipady=3), full_width=True)
+            # --- 고급 ---
+            sec6 = self._section(self._expert_zone, t('section_advanced'))
+            self.referer_var = tk.StringVar(value=settings.get('referer', ''))
+            self._row(sec6, '🔗', t('label_referer'), t('caption_referer'),
+                      lambda p: ttk.Entry(p, textvariable=self.referer_var).pack(fill='x', ipady=3), full_width=True)
 
-        self.lang_header_var = tk.StringVar(value=settings.get('lang_header', ''))
-        self._row(sec6, '🗣', t('label_lang_header'), t('caption_lang_header'),
-                  lambda p: ttk.Entry(p, textvariable=self.lang_header_var, width=26).pack(ipady=3))
+            self.lang_header_var = tk.StringVar(value=settings.get('lang_header', ''))
+            self._row(sec6, '🗣', t('label_lang_header'), t('caption_lang_header'),
+                      lambda p: ttk.Entry(p, textvariable=self.lang_header_var, width=26).pack(ipady=3))
 
-        self.custom_headers_text = tk.Text(sec6, height=3, bg=PANEL_LIGHT, fg=FG, insertbackground=FG,
-                                            relief='flat', font=(FONTS['mono'], 10), highlightthickness=1,
-                                            highlightbackground=BORDER, highlightcolor=ACCENT, padx=6, pady=4)
-        self.custom_headers_text.insert('1.0', settings.get('custom_headers', ''))
-        def _custom_headers_control(p):
-            self.custom_headers_text.pack(in_=p, fill='x')
-        self._row(sec6, '🧩', t('label_custom_headers'), t('caption_custom_headers'),
-                  _custom_headers_control, full_width=True)
+            self.custom_headers_text = tk.Text(sec6, height=3, bg=PANEL_LIGHT, fg=FG, insertbackground=FG,
+                                                relief='flat', font=(FONTS['mono'], 10), highlightthickness=1,
+                                                highlightbackground=BORDER, highlightcolor=ACCENT, padx=6, pady=4)
+            self.custom_headers_text.insert('1.0', settings.get('custom_headers', ''))
+            def _custom_headers_control(p):
+                self.custom_headers_text.pack(in_=p, fill='x')
+            self._row(sec6, '🧩', t('label_custom_headers'), t('caption_custom_headers'),
+                      _custom_headers_control, full_width=True)
 
-        def _cookies_control(p):
-            row = ttk.Frame(p, style='Panel.TFrame')
-            row.pack(fill='x')
-            ttk.Entry(row, textvariable=self.cookies_file_var).pack(side='left', fill='x', expand=True, ipady=3)
-            RoundedButton(row, t('btn_browse'), command=self._browse_cookies_file,
-                          variant='ghost', page_bg=PANEL).pack(side='left', padx=(6, 0))
-        self.cookies_file_var = tk.StringVar(value=settings.get('cookies_file', ''))
-        self._row(sec6, '🍪', t('label_cookies_file'), t('caption_cookies_file'), _cookies_control, full_width=True)
+            def _cookies_control(p):
+                row = ttk.Frame(p, style='Panel.TFrame')
+                row.pack(fill='x')
+                ttk.Entry(row, textvariable=self.cookies_file_var).pack(side='left', fill='x', expand=True, ipady=3)
+                RoundedButton(row, t('btn_browse'), command=self._browse_cookies_file,
+                              variant='ghost', page_bg=PANEL).pack(side='left', padx=(6, 0))
+            self.cookies_file_var = tk.StringVar(value=settings.get('cookies_file', ''))
+            self._row(sec6, '🍪', t('label_cookies_file'), t('caption_cookies_file'), _cookies_control, full_width=True)
 
-        link_format_options = [
-            ('relative', t('link_format_relative')),
-            ('absolute', t('link_format_absolute')),
-            ('original', t('link_format_original')),
-        ]
-        self.link_format_var = tk.StringVar(value=next(
-            (label for code, label in link_format_options if code == settings.get('link_format', 'relative')),
-            link_format_options[0][1]))
-        self._link_format_options = link_format_options
-        self._row(sec6, '🔀', t('label_link_format'), t('caption_link_format'),
-                  lambda p: ttk.Combobox(p, textvariable=self.link_format_var, state='readonly',
-                                         values=[label for _, label in link_format_options],
-                                         width=combo_width([l for _, l in link_format_options])).pack())
+            link_format_options = [
+                ('relative', t('link_format_relative')),
+                ('absolute', t('link_format_absolute')),
+                ('original', t('link_format_original')),
+            ]
+            self.link_format_var = tk.StringVar(value=next(
+                (label for code, label in link_format_options if code == settings.get('link_format', 'relative')),
+                link_format_options[0][1]))
+            self._link_format_options = link_format_options
+            self._row(sec6, '🔀', t('label_link_format'), t('caption_link_format'),
+                      lambda p: ttk.Combobox(p, textvariable=self.link_format_var, state='readonly',
+                                             values=[label for _, label in link_format_options],
+                                             width=combo_width([l for _, l in link_format_options])).pack())
 
-        self.conn_per_sec_var = tk.StringVar(value=str(settings.get('conn_per_sec', 0)))
-        self._row(sec6, '⚡', t('label_conn_per_sec'), t('caption_conn_per_sec'),
-                  lambda p: ttk.Spinbox(p, from_=0, to=100, textvariable=self.conn_per_sec_var, width=8).pack())
+            self.conn_per_sec_var = tk.StringVar(value=str(settings.get('conn_per_sec', 0)))
+            self._row(sec6, '⚡', t('label_conn_per_sec'), t('caption_conn_per_sec'),
+                      lambda p: ttk.Spinbox(p, from_=0, to=100, textvariable=self.conn_per_sec_var, width=8).pack())
 
-        self.near_files_var = tk.BooleanVar(value=bool(settings.get('near_files', False)))
-        self._row(sec6, '📎', t('label_near_files'), t('caption_near_files'),
-                  lambda p: ToggleSwitch(p, variable=self.near_files_var, page_bg=PANEL).pack())
+            self.near_files_var = tk.BooleanVar(value=bool(settings.get('near_files', False)))
+            self._row(sec6, '📎', t('label_near_files'), t('caption_near_files'),
+                      lambda p: ToggleSwitch(p, variable=self.near_files_var, page_bg=PANEL).pack())
 
-        self.warc_var = tk.BooleanVar(value=bool(settings.get('warc', False)))
-        self._row(sec6, '📦', t('label_warc'), t('caption_warc'),
-                  lambda p: ToggleSwitch(p, variable=self.warc_var, page_bg=PANEL).pack())
+            self.warc_var = tk.BooleanVar(value=bool(settings.get('warc', False)))
+            self._row(sec6, '📦', t('label_warc'), t('caption_warc'),
+                      lambda p: ToggleSwitch(p, variable=self.warc_var, page_bg=PANEL).pack())
 
-        self.search_index_var = tk.BooleanVar(value=bool(settings.get('search_index', False)))
-        self._row(sec6, '🔍', t('label_search_index'), t('caption_search_index'),
-                  lambda p: ToggleSwitch(p, variable=self.search_index_var, page_bg=PANEL).pack())
+            self.search_index_var = tk.BooleanVar(value=bool(settings.get('search_index', False)))
+            self._row(sec6, '🔍', t('label_search_index'), t('caption_search_index'),
+                      lambda p: ToggleSwitch(p, variable=self.search_index_var, page_bg=PANEL).pack())
+
 
         # --- AI 크롤링 ---
         sec7 = self._section(basic_zone, t('section_ai'))
@@ -441,29 +454,34 @@ class PreferencesDialog(tk.Toplevel):
             self.cookies_file_var.set(selected)
 
     def _save(self):
-        robots_options = get_robots_options()
-        robots_code = next((code for code, label in robots_options if label == self.robots_var.get()), '2')
+        # 스마트 모드에서는 이 값들을 애초에 만들지 않았으므로, 기존에 저장돼 있던
+        # 값을 그대로 둔다 (건드리지 않은 설정을 실수로 지우면 안 되기 때문).
+        if self.mode != 'smart':
+            robots_options = get_robots_options()
+            robots_code = next((code for code, label in robots_options if label == self.robots_var.get()), '2')
+            link_format_code = next(
+                (code for code, label in self._link_format_options if label == self.link_format_var.get()),
+                'relative')
+            self.settings['user_agent'] = self.ua_var.get().strip()
+            self.settings['connections'] = int(self.conn_var.get() or DEFAULT_SETTINGS['connections'])
+            self.settings['retries'] = int(self.retry_var.get() or DEFAULT_SETTINGS['retries'])
+            self.settings['timeout'] = int(self.timeout_var.get() or DEFAULT_SETTINGS['timeout'])
+            self.settings['max_rate'] = int(self.rate_var.get() or 0)
+            self.settings['robots'] = robots_code
+            self.settings['external_links'] = bool(self.external_var.get())
+            self.settings['proxy'] = self.proxy_var.get().strip()
+            self.settings['referer'] = self.referer_var.get().strip()
+            self.settings['lang_header'] = self.lang_header_var.get().strip()
+            self.settings['custom_headers'] = self.custom_headers_text.get('1.0', 'end').strip()
+            self.settings['cookies_file'] = self.cookies_file_var.get().strip()
+            self.settings['link_format'] = link_format_code
+            self.settings['near_files'] = bool(self.near_files_var.get())
+            self.settings['conn_per_sec'] = int(self.conn_per_sec_var.get() or 0)
+            self.settings['warc'] = bool(self.warc_var.get())
+            self.settings['search_index'] = bool(self.search_index_var.get())
+
         lang_code = next((code for code, name in LANG_DISPLAY.items() if name == self.lang_var.get()), 'en')
-        link_format_code = next(
-            (code for code, label in self._link_format_options if label == self.link_format_var.get()), 'relative')
-        self.settings['user_agent'] = self.ua_var.get().strip()
-        self.settings['connections'] = int(self.conn_var.get() or DEFAULT_SETTINGS['connections'])
-        self.settings['retries'] = int(self.retry_var.get() or DEFAULT_SETTINGS['retries'])
-        self.settings['timeout'] = int(self.timeout_var.get() or DEFAULT_SETTINGS['timeout'])
-        self.settings['max_rate'] = int(self.rate_var.get() or 0)
-        self.settings['robots'] = robots_code
-        self.settings['external_links'] = bool(self.external_var.get())
-        self.settings['proxy'] = self.proxy_var.get().strip()
         self.settings['language'] = lang_code
-        self.settings['referer'] = self.referer_var.get().strip()
-        self.settings['lang_header'] = self.lang_header_var.get().strip()
-        self.settings['custom_headers'] = self.custom_headers_text.get('1.0', 'end').strip()
-        self.settings['cookies_file'] = self.cookies_file_var.get().strip()
-        self.settings['link_format'] = link_format_code
-        self.settings['near_files'] = bool(self.near_files_var.get())
-        self.settings['conn_per_sec'] = int(self.conn_per_sec_var.get() or 0)
-        self.settings['warc'] = bool(self.warc_var.get())
-        self.settings['search_index'] = bool(self.search_index_var.get())
         provider_code = next(
             (code for code, label in self._provider_options if label == self.ai_provider_var.get()), 'anthropic')
         self.settings['ai_provider'] = provider_code
@@ -1248,6 +1266,22 @@ class OptionsDialog(tk.Toplevel):
         ttk.Combobox(parent, textvariable=app.wait_until_var, state='readonly',
                      values=['networkidle', 'load', 'domcontentloaded']).pack(fill='x', pady=(4, 0), ipady=2)
         ttk.Label(parent, text=t('caption_wait_until'), style='Caption.TLabel',
+                  wraplength=580).pack(anchor='w', pady=(2, 0))
+
+        # 어디까지 따라갈지(도메인/폴더 범위) - 사이트 미러링의 '수집 범위' 다이얼로그와
+        # 같은 변수를 쓴다. 예전엔 이 값이 스마트 모드에서는 손댈 곳이 없어서
+        # 미러링 쪽 화면에 가야만 바꿀 수 있었다.
+        ttk.Label(parent, text=t('label_domain_scope'), style='RowTitle.TLabel').pack(anchor='w', pady=(16, 0))
+        ttk.Combobox(parent, textvariable=app.domain_scope_var, state='readonly',
+                     values=[label for _, label in app.domain_scope_options],
+                     width=combo_width([l for _, l in app.domain_scope_options])).pack(
+            fill='x', pady=(4, 0), ipady=2)
+        ttk.Label(parent, text=t('caption_domain_scope'), style='Caption.TLabel',
+                  wraplength=580).pack(anchor='w', pady=(2, 0))
+
+        ttk.Checkbutton(parent, text=t('label_same_folder'),
+                        variable=app.same_folder_var).pack(anchor='w', pady=(14, 0))
+        ttk.Label(parent, text=t('caption_same_folder'), style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
         # 로그인이 필요한 사이트는 이 토글이 핵심이라 스마트 옵션 안에도 같이 노출한다.
@@ -2120,7 +2154,10 @@ class MirrorXApp:
     def _open_preferences(self):
         if getattr(self, '_busy', False):
             return
-        PreferencesDialog(self.root, self.settings, on_save=self._on_prefs_saved)
+        # 스마트 크롤링 모드일 때는 HTTrack 전용 설정(연결/속도/정책/네트워크/고급)을
+        # 아예 안 보여준다 - Playwright는 그 값들을 하나도 읽지 않아서 보여줘 봐야
+        # 헷갈리기만 한다.
+        PreferencesDialog(self.root, self.settings, on_save=self._on_prefs_saved, mode=self.mode_var.get())
 
     def _on_prefs_saved(self):
         # 환경설정에서 바꾼 쿠키 설정이 스마트 옵션 창의 토글에도 반영되게 맞춰준다.
@@ -2326,7 +2363,8 @@ class MirrorXApp:
             'httrack': {'depth': self.follow_depth_var.get()},
             'scope': {'domain_scope': next(
                 (code for code, label in self.domain_scope_options
-                 if label == self.domain_scope_var.get()), 'host')},
+                 if label == self.domain_scope_var.get()), 'host'),
+                      'same_folder': bool(self.same_folder_var.get())},
             'use_local_cookies': bool(self.use_local_cookies_var.get()),
         }
 

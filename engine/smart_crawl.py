@@ -273,6 +273,46 @@ def rewrite_saved_files(writer, page_files, log_fn):
     return rewritten
 
 
+# 링크로 발견됐을 때 '페이지로 열어보지 않는' 확장자들. 이런 주소를 그대로
+# page.goto()로 열면 브라우저가 페이지 대신 파일 다운로드를 시도하거나, 받아온
+# 바이너리를 텍스트로 잘못 저장하게 된다. (이미지/CSS/JS 등은 이것과 무관하게
+# 방문한 페이지 안에서 <img>/<link>로 쓰이면 response 이벤트로 여전히 저장된다 -
+# 여기서 거르는 건 어디까지나 '이 주소 자체를 새 페이지로 열지 말지'뿐이다.)
+_NON_PAGE_EXT = {
+    'pdf', 'zip', 'rar', '7z', 'tar', 'gz', 'exe', 'msi', 'dmg', 'apk',
+    'png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'ico', 'bmp', 'tiff',
+    'mp4', 'mp3', 'avi', 'mov', 'webm', 'wav', 'flac', 'ogg', 'm4a',
+    'doc', 'docx', 'xls', 'xlsx', 'ppt', 'pptx', 'hwp', 'csv',
+    'css', 'js', 'json', 'xml', 'woff', 'woff2', 'ttf', 'eot',
+}
+
+
+def _is_page_link(url):
+    """이 주소가 '방문할 페이지'인지, 아니면 파일 다운로드 링크인지 확장자로 가른다."""
+    path = urllib.parse.urlparse(url).path
+    last = path.rsplit('/', 1)[-1]
+    ext = last.rsplit('.', 1)[-1].lower() if '.' in last else ''
+    return ext not in _NON_PAGE_EXT
+
+
+def _start_boundaries(start_urls):
+    """'같은 폴더 안에서만' 범위를 위해, 시작 주소들의 '디렉터리 경계'를 계산한다.
+    site.com/book/1234/1 로 시작하면 경계는 site.com + '/book/1234/' 가 되어
+    site.com/book/1234/* 는 통과하고 site.com/book/5678/* 는 막힌다."""
+    boundaries = []
+    for su in start_urls:
+        p = urllib.parse.urlparse(su)
+        directory = p.path.rsplit('/', 1)[0] + '/'
+        boundaries.append((p.netloc.lower(), directory))
+    return boundaries
+
+
+def _within_boundaries(target_url, boundaries):
+    p = urllib.parse.urlparse(target_url)
+    return any(p.netloc.lower() == netloc and p.path.startswith(directory)
+              for netloc, directory in boundaries)
+
+
 def _auto_scroll(page, max_steps=30, pause_ms=300):
     """지연 로딩 콘텐츠를 끌어내기 위해 페이지 끝까지 반복 스크롤한다."""
     last_height = 0
@@ -318,6 +358,8 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
 
     scope = job.get('scope', {})
     domain_scope = scope.get('domain_scope', 'host')
+    same_folder = bool(scope.get('same_folder'))
+    boundaries = _start_boundaries(urls) if same_folder else None
 
     try:
         os.makedirs(out_dir, exist_ok=True)
@@ -336,6 +378,16 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                 if target_netloc == su_netloc:
                     return True
         return False
+
+    def is_allowed(target_url, start_urls):
+        """도메인 범위 + (켰다면) 같은 폴더 범위 + 페이지로 열어볼 만한 주소인지를 모두 본다."""
+        if not _is_page_link(target_url):
+            return False
+        if not is_allowed_domain(target_url, start_urls):
+            return False
+        if same_folder and not _within_boundaries(target_url, boundaries):
+            return False
+        return True
 
     try:
         with sync_playwright() as p:
@@ -400,7 +452,7 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                             for a in soup.find_all('a', href=True):
                                 next_url = urllib.parse.urljoin(current_url, a['href']).split('#')[0]
                                 if next_url.startswith(('http://', 'https://')):
-                                    if next_url not in visited_urls and is_allowed_domain(next_url, urls):
+                                    if next_url not in visited_urls and is_allowed(next_url, urls):
                                         queue.append((next_url, current_depth + 1))
                         except Exception as parse_e:
                             log_fn(f'[스마트 크롤링] 링크 파싱 오류: {parse_e}')

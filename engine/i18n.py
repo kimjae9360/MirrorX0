@@ -136,6 +136,10 @@ STRINGS = {
             "You rarely need these. Open them only when something is not working - "
             "for example the site keeps blocking you, or downloads are too slow."
         ),
+        'caption_expert_hidden_smart': (
+            'Smart Crawl uses a real browser, so the connection/speed/policy settings below do not apply here. '
+            'They only affect Site Mirroring.'
+        ),
         'label_user_agent': 'User-Agent',
         'caption_user_agent': "Leave blank to use HTTrack's default.",
         'label_connections': 'Concurrent Connections',
@@ -534,6 +538,10 @@ STRINGS = {
         'caption_expert': (
             '평소에는 건드릴 일이 없어요. 사이트가 자꾸 막히거나 받는 속도가 너무 느린 것처럼 '
             '문제가 생겼을 때만 열어보세요.'
+        ),
+        'caption_expert_hidden_smart': (
+            '스마트 크롤링은 실제 브라우저로 받기 때문에, 아래 연결·속도·정책 설정이 적용되지 않아요. '
+            '그 설정들은 사이트 미러링에만 영향을 줍니다.'
         ),
         'label_user_agent': 'User-Agent',
         'caption_user_agent': '비워두면 HTTrack 기본값을 사용합니다.',

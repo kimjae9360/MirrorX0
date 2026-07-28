@@ -1,0 +1,33 @@
+MIT License
+
+Copyright (c) 2026 kimjae9360
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+---
+
+이 MIT 라이선스는 MirrorX0 자체 코드(engine/*.py 등)에만 적용됩니다.
+
+함께 배포되는 HTTrack 엔진(engine/httrack/)은 별도로 GPLv3 라이선스를 따릅니다.
+MirrorX0는 HTTrack을 라이브러리로 링크하지 않고 별도 프로세스로 실행하므로
+두 라이선스가 공존할 수 있습니다. 자세한 내용은 THIRD-PARTY-NOTICES.md 참고.
+
+This MIT license applies to MirrorX0's own code only.
+The bundled HTTrack engine (engine/httrack/) is licensed under GPLv3 separately.
+See THIRD-PARTY-NOTICES.md for details.
