@@ -46,6 +46,8 @@ def register_task(job):
         date_obj = datetime.strptime(schedule['date'], '%Y-%m-%d')
         sd_value = date_obj.strftime('%Y/%m/%d')
         cmd += ['/sc', 'once', '/sd', sd_value, '/st', schedule['at']]
+    elif sched_type == 'hourly':
+        cmd += ['/sc', 'hourly', '/mo', str(schedule.get('interval', 1) or 1), '/st', schedule['at']]
     elif sched_type == 'daily':
         cmd += ['/sc', 'daily', '/st', schedule['at']]
     elif sched_type == 'weekly':

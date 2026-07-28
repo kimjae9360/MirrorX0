@@ -347,6 +347,7 @@ STRINGS = {
         'job_mode_smart': 'Smart (browser-rendered)',
         'job_mode_both': 'Both',
         'schedule_type_once': 'Once',
+        'schedule_type_hourly': 'Hourly',
         'schedule_type_daily': 'Daily',
         'schedule_type_weekly': 'Weekly',
         'job_status_never_run': 'Not run yet',
@@ -359,6 +360,7 @@ STRINGS = {
         'label_job_mode': 'Crawl Mode',
         'label_schedule_type': 'Repeat',
         'label_schedule_time': 'Time',
+        'label_schedule_interval': 'Every (hours) — used for "Hourly"',
         'label_schedule_date': 'Date (YYYY-MM-DD) — used for "Once"',
         'label_schedule_weekdays': 'Days of week — used for "Weekly"',
         'weekday_mon': 'Mon', 'weekday_tue': 'Tue', 'weekday_wed': 'Wed', 'weekday_thu': 'Thu',
@@ -396,6 +398,10 @@ STRINGS = {
         'label_export_formats': 'Export as',
         'btn_run_extraction': 'Run Extraction',
         'dialog_ai_extract_title': 'AI Data Extraction',
+        'caption_extract_estimate': (
+            'Estimated: about {calls} API call(s) for {files} page(s) '
+            '(~{rows} row(s) total). Pattern detection found this for free, without calling the AI.'
+        ),
         'btn_ai_extract': 'AI Extract',
         'warn_need_api_key': '[Warning] Please set your Anthropic API key in Preferences first!',
         'warn_need_instruction': '[Warning] Please describe what to extract!',
@@ -788,6 +794,7 @@ STRINGS = {
         'job_mode_smart': '스마트 (브라우저 렌더링)',
         'job_mode_both': '둘 다',
         'schedule_type_once': '1회',
+        'schedule_type_hourly': '매시간',
         'schedule_type_daily': '매일',
         'schedule_type_weekly': '매주',
         'job_status_never_run': '실행 전',
@@ -800,6 +807,7 @@ STRINGS = {
         'label_job_mode': '크롤링 방식',
         'label_schedule_type': '반복',
         'label_schedule_time': '시각',
+        'label_schedule_interval': '몇 시간마다 — "매시간"일 때 사용',
         'label_schedule_date': '날짜 (YYYY-MM-DD) — "1회"일 때 사용',
         'label_schedule_weekdays': '요일 — "매주"일 때 사용',
         'weekday_mon': '월', 'weekday_tue': '화', 'weekday_wed': '수', 'weekday_thu': '목',
@@ -832,6 +840,10 @@ STRINGS = {
         'label_export_formats': '내보내기 형식',
         'btn_run_extraction': '추출 실행',
         'dialog_ai_extract_title': 'AI 데이터 추출',
+        'caption_extract_estimate': (
+            '예상: {files}개 페이지에 대해 API 호출 약 {calls}회 '
+            '(총 약 {rows}행). 패턴 감지로 AI를 부르지 않고 무료로 미리 계산한 값입니다.'
+        ),
         'btn_ai_extract': 'AI 추출',
         'warn_need_api_key': '[경고] 환경설정에서 Anthropic API 키를 먼저 등록해주세요!',
         'warn_need_instruction': '[경고] 어떤 정보를 추출할지 입력해주세요!',

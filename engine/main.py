@@ -636,7 +636,8 @@ class ScheduleJobDialog(tk.Toplevel):
     """예약 크롤링 작업을 새로 만들거나 수정하는 창. 저장 시 Windows 작업 스케줄러에도 등록한다."""
 
     MODE_OPTIONS = [('httrack', 'job_mode_httrack'), ('smart', 'job_mode_smart'), ('both', 'job_mode_both')]
-    SCHEDULE_OPTIONS = [('once', 'schedule_type_once'), ('daily', 'schedule_type_daily'), ('weekly', 'schedule_type_weekly')]
+    SCHEDULE_OPTIONS = [('once', 'schedule_type_once'), ('hourly', 'schedule_type_hourly'),
+                        ('daily', 'schedule_type_daily'), ('weekly', 'schedule_type_weekly')]
     WEEKDAYS = [('MON', 'weekday_mon'), ('TUE', 'weekday_tue'), ('WED', 'weekday_wed'), ('THU', 'weekday_thu'),
                 ('FRI', 'weekday_fri'), ('SAT', 'weekday_sat'), ('SUN', 'weekday_sun')]
 
@@ -706,6 +707,13 @@ class ScheduleJobDialog(tk.Toplevel):
         ttk.Spinbox(time_row, from_=0, to=59, textvariable=self.minute_var, width=4, format='%02.0f').pack(
             side='left', padx=(2, 0))
 
+        interval_row = ttk.Frame(outer)
+        interval_row.pack(fill='x', pady=(0, 12))
+        ttk.Label(interval_row, text=t('label_schedule_interval'), style='MutedRoot.TLabel').pack(side='left')
+        self.interval_var = tk.StringVar(value=str(schedule.get('interval', 1) or 1))
+        ttk.Spinbox(interval_row, from_=1, to=23, textvariable=self.interval_var, width=4).pack(
+            side='left', padx=(10, 0))
+
         ttk.Label(outer, text=t('label_schedule_date'), style='MutedRoot.TLabel').pack(anchor='w')
         self.date_var = tk.StringVar(value=schedule.get('date') or '')
         ttk.Entry(outer, textvariable=self.date_var).pack(fill='x', pady=(4, 12), ipady=3)
@@ -774,8 +782,13 @@ class ScheduleJobDialog(tk.Toplevel):
                 self.log_fn(t('warn_job_invalid_date'))
                 return
         weekdays = [code for code, var in self.weekday_vars if var.get()]
+        try:
+            interval_value = max(1, min(23, int(self.interval_var.get())))
+        except (TypeError, ValueError):
+            interval_value = 1
 
-        schedule = {'type': sched_type, 'at': at_value, 'date': date_value, 'weekdays': weekdays}
+        schedule = {'type': sched_type, 'at': at_value, 'date': date_value, 'weekdays': weekdays,
+                    'interval': interval_value}
         httrack_opts = {'action': '1', 'depth': None, 'filters': list(BASE_FILTER_RULES)}
         smart_opts = {'wait_until': 'networkidle', 'max_pages': 50}
         ai_extract_cfg = self.ai_panel.get_config()
@@ -963,6 +976,21 @@ class AIExtractRunDialog(tk.Toplevel):
             log_fn=log_fn, get_sample_html=get_sample)
         self.ai_panel.enabled_var.set(True)
         self.ai_panel._on_toggle()
+
+        # AI를 실제로 부르기 전에 몇 번 호출될지 미리 보여준다 - 반복 패턴 감지는
+        # AI 없이 구조만 보는 것이라 이 계산 자체는 공짜이고, 짐작이 아니라
+        # 실제 추출과 똑같은 파일을 보고 낸 정확한 숫자다.
+        try:
+            estimate = ai_extract.estimate_extraction_calls(out_dir)
+        except Exception:
+            estimate = None
+        if estimate and estimate['files']:
+            cost_box = tk.Frame(outer, bg=ACCENT_SOFT)
+            cost_box.pack(fill='x', pady=(10, 0))
+            tk.Label(cost_box, text=t('caption_extract_estimate', calls=estimate['estimated_calls'],
+                                      files=estimate['files'], rows=estimate['estimated_rows']),
+                     bg=ACCENT_SOFT, fg=FG, font=(FONTS['ui'], TYPE_CAPTION), wraplength=460,
+                     justify='left', padx=12, pady=10).pack(anchor='w')
 
         btn_frame = ttk.Frame(outer)
         btn_frame.pack(fill='x', pady=(16, 0))

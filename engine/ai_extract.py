@@ -319,6 +319,39 @@ def find_html_files(folder, max_files=None):
     return files[:max_files] if max_files else files
 
 
+def estimate_extraction_calls(folder, max_pages=50, max_items_per_call=20):
+    """AI 추출을 실제로 돌리기 전에, API를 몇 번 부르게 될지 미리 알려준다.
+
+    반복 패턴 감지(pattern_detect)는 AI를 안 쓰고 구조만 본다. 그래서 이
+    추정 자체는 비용이 전혀 들지 않고, run_extraction이 실제로 쓸 것과 같은
+    함수로 같은 파일을 보는 것이라 '대충 짐작'이 아니라 정확한 숫자다.
+
+    반환: {'files': 파일 수, 'list_pages': 목록형(반복 패턴) 페이지 수,
+           'estimated_calls': 예상 API 호출 횟수, 'estimated_rows': 예상 총 행 수}"""
+    import pattern_detect
+    html_files = find_html_files(folder, max_pages)
+    total_calls = 0
+    total_rows = 0
+    list_pages = 0
+    for path in html_files:
+        try:
+            with open(path, 'r', encoding='utf-8', errors='replace') as f:
+                html = f.read()
+        except Exception:
+            continue
+        blocks = pattern_detect.detect_repeating_blocks(html)
+        if blocks:
+            count = blocks[0]['count']
+            list_pages += 1
+            total_calls += max(1, -(-count // max_items_per_call))  # 올림 나눗셈
+            total_rows += count
+        else:
+            total_calls += 1
+            total_rows += 1
+    return {'files': len(html_files), 'list_pages': list_pages,
+            'estimated_calls': total_calls, 'estimated_rows': total_rows}
+
+
 def run_extraction(folder, fields, api_key, log_fn, provider='anthropic', model=None,
                     max_pages=50, export_formats=('csv',)):
     """folder 안의 모든 .html 파일을 순서대로 추출하고 export까지 한 번에 처리하는 헬퍼.
