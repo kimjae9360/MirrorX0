@@ -9,7 +9,38 @@ r"""설정과 프로젝트 기록을 파일로 저장하고 불러오는 부분.
 """
 import os
 import json
+import shutil
 import hashlib
+
+# 디스크 여유 공간 기준(MB). WARN 밑으로 떨어지면 경고만, CRITICAL 밑으로
+# 떨어지면 (아직 시작 전이면) 시작을 막고 (진행 중이면) 크롤링을 멈춘다 -
+# 디스크가 완전히 꽉 차면 파일 쓰기 중 손상/충돌로 이어질 수 있어서다.
+DISK_WARN_MB = 1024
+DISK_CRITICAL_MB = 200
+
+
+def check_disk_space(path):
+    """path가 위치할 드라이브의 남은 용량(MB)을 확인한다. path 자체가 아직
+    없어도(받기 전 폴더 등) 존재하는 상위 폴더를 찾아 그 드라이브를 본다.
+    반환: (free_mb: float, status: 'ok'|'warn'|'critical')"""
+    probe = os.path.abspath(path)
+    while probe and not os.path.exists(probe):
+        parent = os.path.dirname(probe)
+        if parent == probe:
+            break
+        probe = parent
+    if not probe or not os.path.exists(probe):
+        probe = os.path.abspath(os.sep)
+
+    usage = shutil.disk_usage(probe)
+    free_mb = usage.free / (1024 * 1024)
+    if free_mb < DISK_CRITICAL_MB:
+        status = 'critical'
+    elif free_mb < DISK_WARN_MB:
+        status = 'warn'
+    else:
+        status = 'ok'
+    return free_mb, status
 
 CONFIG_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'MirrorX')
 CONFIG_FILE = os.path.join(CONFIG_DIR, 'settings.json')

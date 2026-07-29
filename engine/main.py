@@ -2923,6 +2923,15 @@ class MirrorXApp:
         out_dir = os.path.join(b_path, p_name)
         os.makedirs(out_dir, exist_ok=True)
 
+        # HTTrack은 우리가 통제할 수 없는 블랙박스 서브프로세스라 실행 도중
+        # 디스크 여유 공간을 계속 확인해줄 수 없다 - 시작 전에만 확인한다.
+        free_mb, disk_status = storage.check_disk_space(out_dir)
+        if disk_status == 'critical':
+            self._log(t('warn_disk_critical', free=int(free_mb)))
+            return
+        elif disk_status == 'warn':
+            self._log(t('warn_disk_low', free=int(free_mb)))
+
         # 마지막으로 사용한 저장 경로를 환경설정에 기록해 다음 실행 때 기본값으로 사용
         self.settings['base_path'] = b_path
         save_settings(self.settings)
@@ -3166,21 +3175,29 @@ def main_headless(job_id):
     try:
         settings = load_settings()
         if job['mode'] in ('httrack', 'both'):
-            httrack_opts = job.get('httrack', {}) or {}
-            cmd = build_httrack_cmd(
-                job['urls'], job['save_path'], httrack_opts.get('action', '1'),
-                httrack_opts.get('depth'), httrack_opts.get('filters', []), settings, log_fn=log)
-            log('Running: ' + ' '.join(cmd))
-            outcome = {}
-
-            def on_done(rc, engine_errors):
-                outcome['rc'] = rc
-                outcome['errors'] = engine_errors
-
-            run_httrack(cmd, on_log=log, on_progress=lambda s: None, on_done=on_done)
-            rc = outcome.get('rc')
-            if not (isinstance(rc, int) and rc == 0 and outcome.get('errors', 0) == 0):
+            free_mb, disk_status = storage.check_disk_space(job['save_path'])
+            if disk_status == 'critical':
+                log(t('warn_disk_critical', free=int(free_mb)))
                 status = 'errors'
+            else:
+                if disk_status == 'warn':
+                    log(t('warn_disk_low', free=int(free_mb)))
+
+                httrack_opts = job.get('httrack', {}) or {}
+                cmd = build_httrack_cmd(
+                    job['urls'], job['save_path'], httrack_opts.get('action', '1'),
+                    httrack_opts.get('depth'), httrack_opts.get('filters', []), settings, log_fn=log)
+                log('Running: ' + ' '.join(cmd))
+                outcome = {}
+
+                def on_done(rc, engine_errors):
+                    outcome['rc'] = rc
+                    outcome['errors'] = engine_errors
+
+                run_httrack(cmd, on_log=log, on_progress=lambda s: None, on_done=on_done)
+                rc = outcome.get('rc')
+                if not (isinstance(rc, int) and rc == 0 and outcome.get('errors', 0) == 0):
+                    status = 'errors'
 
         if job['mode'] in ('smart', 'both'):
             # 브라우저 로그인 사용 여부는 전역 설정이므로 job에 실어서 넘긴다

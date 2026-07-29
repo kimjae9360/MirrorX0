@@ -246,6 +246,11 @@ STRINGS = {
         'warn_need_project_name': '[Warning] Please enter a project name!',
         'error_engine_missing': '[ERROR] HTTrack engine not found: {path}',
         'log_engine_init': 'Initializing HTTrack engine...',
+        'warn_disk_critical': (
+            '[Warning] Not enough free disk space (only {free}MB left) — not starting. '
+            'Free up some space and try again.'
+        ),
+        'warn_disk_low': '[Warning] Disk space is getting low (only {free}MB left). Continuing anyway.',
         'log_project_folder': 'Project folder: {path}',
         'log_command': 'Running command: {cmd}',
         'log_user_stopped': 'Collection was forcibly stopped by the user.',
@@ -740,6 +745,11 @@ STRINGS = {
         'warn_need_project_name': '[경고] 프로젝트 이름을 입력해주세요!',
         'error_engine_missing': '[ERROR] HTTrack 엔진 경로 누락: {path}',
         'log_engine_init': 'HTTrack 엔진 초기화 중...',
+        'warn_disk_critical': (
+            '[경고] 디스크 여유 공간이 부족해({free}MB 남음) 시작하지 않습니다. '
+            '공간을 확보한 뒤 다시 시도해주세요.'
+        ),
+        'warn_disk_low': '[경고] 디스크 여유 공간이 얼마 남지 않았습니다({free}MB 남음). 계속 진행합니다.',
         'log_project_folder': '프로젝트 폴더: {path}',
         'log_command': '명령어 실행: {cmd}',
         'log_user_stopped': '사용자에 의해 수집이 강제 중지되었습니다.',

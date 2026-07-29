@@ -18,6 +18,7 @@ Chrome이 없으면 예외를 내지 않고 로그만 남기고 종료한다(예
 """
 import os
 import re
+import json
 import random
 import hashlib
 import urllib.parse
@@ -26,6 +27,43 @@ import urllib.parse
 _ILLEGAL_CHARS_RE = re.compile(r'[<>:"|?*\\\x00-\x1f]')
 # CSS 안의 url(...) 을 찾는다
 _CSS_URL_RE = re.compile(r'url\(\s*([^)]+?)\s*\)', re.IGNORECASE)
+
+_STATE_FILENAME = '.mirrorx_smart_state.json'
+
+
+def _state_file_path(out_dir):
+    return os.path.join(out_dir, _STATE_FILENAME)
+
+
+def _load_crawl_state(out_dir):
+    """중단된 적이 있으면 방문 기록/대기열을 불러온다. 없으면 None."""
+    path = _state_file_path(out_dir)
+    if not os.path.exists(path):
+        return None
+    try:
+        with open(path, 'r', encoding='utf-8') as f:
+            data = json.load(f)
+        visited = set(data.get('visited_urls', []))
+        queue_items = [(u, d) for u, d in data.get('queue', [])]
+        return visited, queue_items
+    except Exception:
+        return None
+
+
+def _save_crawl_state(out_dir, visited_urls, queue_items):
+    path = _state_file_path(out_dir)
+    try:
+        with open(path, 'w', encoding='utf-8') as f:
+            json.dump({'visited_urls': sorted(visited_urls), 'queue': [list(q) for q in queue_items]}, f)
+    except OSError:
+        pass
+
+
+def _clear_crawl_state(out_dir):
+    try:
+        os.remove(_state_file_path(out_dir))
+    except OSError:
+        pass
 
 
 def _cookie_domains_for(urls):
@@ -372,6 +410,15 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
         log_fn(f'[스마트 크롤링] 저장 폴더를 만들 수 없습니다: {e}')
         return False
 
+    import storage
+    free_mb, disk_status = storage.check_disk_space(out_dir)
+    if disk_status == 'critical':
+        log_fn(f'[스마트 크롤링] 디스크 여유 공간이 너무 부족해({free_mb:.0f}MB) 시작하지 않습니다. '
+               '공간을 확보한 뒤 다시 시도해주세요.')
+        return False
+    elif disk_status == 'warn':
+        log_fn(f'[스마트 크롤링] 디스크 여유 공간이 얼마 남지 않았습니다({free_mb:.0f}MB). 계속 진행합니다.')
+
     def is_allowed_domain(target_url, start_urls):
         target_netloc = urllib.parse.urlparse(target_url).netloc.lower()
         for su in start_urls:
@@ -415,9 +462,19 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                 _inject_local_cookies(page, urls, log_fn)
 
             from collections import deque
-            queue = deque([(u, 1) for u in urls])
-            visited_urls = set()
-            visited_count = 0
+
+            resumed_state = None if job.get('force_restart') else _load_crawl_state(out_dir)
+            if resumed_state:
+                visited_urls, queue_items = resumed_state
+                queue = deque(queue_items)
+                log_fn(f'[스마트 크롤링] 이전에 중단된 지점에서 이어받습니다 '
+                       f'(이미 방문 {len(visited_urls)}개, 남은 대기열 {len(queue)}개).')
+            else:
+                queue = deque([(u, 1) for u in urls])
+                visited_urls = set()
+                _clear_crawl_state(out_dir)  # force_restart 등으로 새로 시작하면 이전 상태는 버린다
+
+            visited_count = len(visited_urls)
             error_count = 0
 
             def report(current_url=''):
@@ -432,6 +489,16 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                 if should_stop and should_stop():
                     log_fn('[스마트 크롤링] 사용자가 중지했습니다.')
                     break
+
+                # 페이지마다 디스크 여유 공간을 확인한다 - disk_usage 자체는 가벼운
+                # 시스템 호출이라 매번 봐도 느려지지 않고, 디스크가 꽉 찬 채로 계속
+                # 쓰다가 파일이 손상되는 것을 막는 게 더 중요하다.
+                free_mb, disk_status = storage.check_disk_space(out_dir)
+                if disk_status == 'critical':
+                    log_fn(f'[스마트 크롤링] 디스크 여유 공간이 부족해({free_mb:.0f}MB) 여기서 멈춥니다. '
+                           '공간을 확보한 뒤 다시 실행하면 이어받습니다.')
+                    break
+
                 current_url, current_depth = queue.popleft()
                 if current_url in visited_urls:
                     continue
@@ -467,6 +534,7 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                     log_fn(f'[스마트 크롤링] 실패 ({current_url}): {e}')
 
                 report(current_url)
+                _save_crawl_state(out_dir, visited_urls, queue)
 
                 # 다음 페이지로 넘어가기 전에 잠깐 쉰다(설정했다면). 마지막 페이지 뒤에는
                 # 어차피 쓸모없는 대기라 큐가 남아있을 때만 쉰다.
@@ -474,6 +542,12 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                     lo, hi = pause
                     if hi > 0:
                         page.wait_for_timeout(random.uniform(min(lo, hi), hi) * 1000)
+
+            # 대기열이 자연스럽게 다 빈 경우(더 갈 곳이 없어 끝난 것)에만 이어받기
+            # 상태를 지운다. 사용자가 멈췄거나(should_stop), max_pages에 걸렸거나,
+            # 디스크 공간 부족으로 멈췄다면 상태를 남겨서 다음에 이어받을 수 있게 한다.
+            if not queue:
+                _clear_crawl_state(out_dir)
 
             browser.close()
 
