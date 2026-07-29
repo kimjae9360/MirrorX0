@@ -784,17 +784,28 @@ class AIExtractPanel:
 
         self.enabled_var = tk.BooleanVar(value=existing.get('enabled', False))
         ttk.Checkbutton(parent, text=t('label_ai_extract_enable'),
-                         variable=self.enabled_var, command=self._on_toggle).pack(anchor='w', pady=(12, 0))
+                         variable=self.enabled_var, command=self._on_toggle).pack(anchor='w', pady=(12, 6))
 
         self.body = ttk.Frame(parent, style='Panel.TFrame')
 
-        ttk.Label(self.body, text=t('label_ai_instruction'), style='Muted.TLabel').pack(anchor='w', pady=(6, 2))
+        ttk.Label(self.body, text=t('label_ai_instruction'), style='Muted.TLabel').pack(anchor='w', pady=(0, 4))
+        # 빈 텍스트 상자는 그냥 빈 여백처럼 보여 "뭔가 이상하다"는 인상을 준다.
+        # placeholder 예시 문구를 회색으로 넣어 "여기에 입력하는 곳"이라는 걸
+        # 바로 알 수 있게 한다 (포커스를 받으면 사라지고, 비운 채 벗어나면 되살아남).
+        self._placeholder = t('placeholder_ai_instruction')
         self.instruction_text = tk.Text(self.body, height=2, bg=PANEL_LIGHT, fg=FG, insertbackground=FG,
-                                         relief='flat', font=(FONTS['mono'], 10), highlightthickness=1,
-                                         highlightbackground=BORDER, highlightcolor=ACCENT, padx=6, pady=4)
-        self.instruction_text.insert('1.0', existing.get('instruction', ''))
+                                         relief='flat', font=(FONTS['ui'], TYPE_BODY), wrap='word',
+                                         highlightthickness=1, highlightbackground=BORDER,
+                                         highlightcolor=ACCENT, padx=8, pady=6)
+        initial = existing.get('instruction', '')
+        if initial:
+            self.instruction_text.insert('1.0', initial)
+        else:
+            self._show_placeholder()
+        self.instruction_text.bind('<FocusIn>', self._on_instruction_focus_in)
+        self.instruction_text.bind('<FocusOut>', self._on_instruction_focus_out)
         self.instruction_text.pack(fill='x')
-        ttk.Label(self.body, text=t('caption_ai_instruction'), style='Caption.TLabel').pack(anchor='w')
+        ttk.Label(self.body, text=t('caption_ai_instruction'), style='Caption.TLabel').pack(anchor='w', pady=(4, 0))
 
         RoundedButton(self.body, t('btn_propose_fields'), command=self._on_propose,
                       variant='neutral', page_bg=PANEL).pack(anchor='w', pady=(6, 6))
@@ -849,12 +860,33 @@ class AIExtractPanel:
             self.field_rows.remove(entry)
         entry[3].destroy()
 
+    def _showing_placeholder(self):
+        return (str(self.instruction_text.cget('fg')) == FG_MUTED
+                and self.instruction_text.get('1.0', 'end').strip() == self._placeholder)
+
+    def _show_placeholder(self):
+        self.instruction_text.delete('1.0', 'end')
+        self.instruction_text.insert('1.0', self._placeholder)
+        self.instruction_text.configure(fg=FG_MUTED)
+
+    def _on_instruction_focus_in(self, _event=None):
+        if self._showing_placeholder():
+            self.instruction_text.delete('1.0', 'end')
+            self.instruction_text.configure(fg=FG)
+
+    def _on_instruction_focus_out(self, _event=None):
+        if not self.instruction_text.get('1.0', 'end').strip():
+            self._show_placeholder()
+
+    def _get_instruction(self):
+        return '' if self._showing_placeholder() else self.instruction_text.get('1.0', 'end').strip()
+
     def _on_propose(self):
         ai_config = self.get_ai_config()
         if not ai_ready(ai_config):
             self.log_fn(t('warn_need_api_key'))
             return
-        instruction = self.instruction_text.get('1.0', 'end').strip()
+        instruction = self._get_instruction()
         if not instruction:
             self.log_fn(t('warn_need_instruction'))
             return
@@ -888,32 +920,64 @@ class AIExtractPanel:
                   for nv, lv, tv, _ in self.field_rows if nv.get().strip()]
         return {
             'enabled': self.enabled_var.get(),
-            'instruction': self.instruction_text.get('1.0', 'end').strip(),
+            'instruction': self._get_instruction(),
             'fields': fields,
             'export_formats': formats or ['csv'],
         }
 
 
+def _build_folder_picker(parent, initial_dir):
+    """'대상 폴더' 행 하나(라벨 + 경로 입력 + 찾아보기 버튼)를 만들어 준다.
+    AI 추출/정리된 사본 만들기 둘 다 '이미 받아둔 폴더'를 대상으로 동작하는데,
+    지금까지는 그 폴더를 사용자가 볼 수도 바꿀 수도 없어서(다운로드 화면의
+    설정값을 몰래 그대로 썼다) '어디서 가져오는 건지' 알 길이 없었다.
+    이제는 다이얼로그를 열 때마다 이 폴더가 항상 눈에 보이고 직접 고를 수 있다."""
+    ttk.Label(parent, text=t('label_target_folder'), style='Muted.TLabel').pack(anchor='w', pady=(0, 2))
+    row = ttk.Frame(parent)
+    row.pack(fill='x', pady=(4, 2))
+    folder_var = tk.StringVar(value=initial_dir if os.path.isdir(initial_dir) else '')
+    entry = ttk.Entry(row, textvariable=folder_var)
+    entry.pack(side='left', fill='x', expand=True, ipady=3)
+
+    def browse():
+        start = folder_var.get().strip() or os.path.expanduser('~')
+        selected = filedialog.askdirectory(title=t('dialog_browse_folder_title'), parent=parent.winfo_toplevel(),
+                                            initialdir=start if os.path.isdir(start) else os.path.expanduser('~'))
+        if selected:
+            folder_var.set(selected)
+
+    RoundedButton(row, t('btn_browse'), command=browse, variant='ghost', padx=12, pady=6).pack(
+        side='left', padx=(8, 0))
+    ttk.Label(parent, text=t('caption_target_folder'), style='Caption.TLabel').pack(anchor='w', pady=(0, 10))
+    return folder_var
+
+
 class AIExtractRunDialog(tk.Toplevel):
-    """이미 받아둔 프로젝트 폴더에 대해 바로 AI 추출을 실행하는 즉시 실행 창."""
+    """대상 폴더를 직접 고르고, 그 폴더에 대해 바로 AI 추출을 실행하는 창."""
 
     def __init__(self, parent, out_dir, settings, log_fn, on_run):
         super().__init__(parent)
         self.title(t('dialog_ai_extract_title'))
         self.configure(bg=BG)
-        self.geometry('520x600')
-        self.minsize(460, 400)
+        self.geometry('520x660')
+        self.minsize(460, 440)
         self.resizable(True, True)
         self.transient(parent)
         self.grab_set()
         self.on_run = on_run
+        self.log_fn = log_fn
 
         outer = make_scrollable(self)
         outer.configure(padding=20)
         ttk.Label(outer, text=t('dialog_ai_extract_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 10))
 
+        self.folder_var = _build_folder_picker(outer, out_dir)
+
         def get_sample():
-            files = ai_extract.find_html_files(out_dir, max_files=1)
+            folder = self.folder_var.get().strip()
+            if not os.path.isdir(folder):
+                return None
+            files = ai_extract.find_html_files(folder, max_files=1)
             if not files:
                 return None
             with open(files[0], 'r', encoding='utf-8', errors='replace') as f:
@@ -928,17 +992,12 @@ class AIExtractRunDialog(tk.Toplevel):
         # AI를 실제로 부르기 전에 몇 번 호출될지 미리 보여준다 - 반복 패턴 감지는
         # AI 없이 구조만 보는 것이라 이 계산 자체는 공짜이고, 짐작이 아니라
         # 실제 추출과 똑같은 파일을 보고 낸 정확한 숫자다.
-        try:
-            estimate = ai_extract.estimate_extraction_calls(out_dir)
-        except Exception:
-            estimate = None
-        if estimate and estimate['files']:
-            cost_box = tk.Frame(outer, bg=ACCENT_SOFT)
-            cost_box.pack(fill='x', pady=(10, 0))
-            tk.Label(cost_box, text=t('caption_extract_estimate', calls=estimate['estimated_calls'],
-                                      files=estimate['files'], rows=estimate['estimated_rows']),
-                     bg=ACCENT_SOFT, fg=FG, font=(FONTS['ui'], TYPE_CAPTION), wraplength=460,
-                     justify='left', padx=12, pady=10).pack(anchor='w')
+        self.cost_box = tk.Frame(outer, bg=ACCENT_SOFT)
+        self.cost_label = tk.Label(self.cost_box, bg=ACCENT_SOFT, fg=FG, font=(FONTS['ui'], TYPE_CAPTION),
+                                    wraplength=460, justify='left', padx=12, pady=10)
+        self.cost_label.pack(anchor='w')
+        self._refresh_estimate()
+        self.folder_var.trace_add('write', lambda *_a: self._refresh_estimate())
 
         btn_frame = ttk.Frame(outer)
         btn_frame.pack(fill='x', pady=(16, 0))
@@ -946,10 +1005,71 @@ class AIExtractRunDialog(tk.Toplevel):
             side='right', padx=(6, 0))
         RoundedButton(btn_frame, t('btn_cancel'), command=self.destroy, variant='ghost').pack(side='right')
 
+    def _refresh_estimate(self):
+        folder = self.folder_var.get().strip()
+        try:
+            estimate = ai_extract.estimate_extraction_calls(folder) if os.path.isdir(folder) else None
+        except Exception:
+            estimate = None
+        if estimate and estimate['files']:
+            self.cost_label.configure(text=t('caption_extract_estimate', calls=estimate['estimated_calls'],
+                                              files=estimate['files'], rows=estimate['estimated_rows']))
+            if not self.cost_box.winfo_manager():
+                self.cost_box.pack(fill='x', pady=(10, 0))
+        else:
+            self.cost_box.pack_forget()
+
     def _run(self):
+        folder = self.folder_var.get().strip()
+        if not os.path.isdir(folder):
+            messagebox.showwarning(t('dialog_ai_extract_title'), t('warn_choose_folder'), parent=self)
+            self.log_fn(t('warn_choose_folder'))
+            return
         config = self.ai_panel.get_config()
         self.destroy()
-        self.on_run(config)
+        self.on_run(folder, config)
+
+
+class CleanOrganizeDialog(tk.Toplevel):
+    """'정리된 사본 만들기' - 대상 폴더를 고르고 실행을 확인하는 작은 창.
+    예전엔 다이얼로그 없이 다운로드 화면의 설정값을 몰래 갖다 써서, 크롤링
+    화면에서 이 카드를 누르면 아무 폴더도 안 보이고 조용히 아무 일도 안
+    일어났다(경고가 숨겨진 로그 패널로만 갔다) - 이제 폴더를 직접 보고 고른다."""
+
+    def __init__(self, parent, out_dir, log_fn, on_run):
+        super().__init__(parent)
+        self.title(t('dialog_clean_organize_title'))
+        self.configure(bg=BG)
+        self.geometry('480x320')
+        self.minsize(420, 280)
+        self.resizable(True, True)
+        self.transient(parent)
+        self.grab_set()
+        self.on_run = on_run
+        self.log_fn = log_fn
+
+        outer = ttk.Frame(self)
+        outer.pack(fill='both', expand=True, padx=20, pady=20)
+        ttk.Label(outer, text=t('dialog_clean_organize_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 6))
+        ttk.Label(outer, text=t('caption_clean_organize_intro'), style='Caption.TLabel',
+                  wraplength=430, justify='left').pack(anchor='w', pady=(0, 12))
+
+        self.folder_var = _build_folder_picker(outer, out_dir)
+
+        btn_frame = ttk.Frame(outer)
+        btn_frame.pack(fill='x', pady=(16, 0), side='bottom')
+        RoundedButton(btn_frame, t('btn_run_clean_organize'), command=self._run, variant='accent').pack(
+            side='right', padx=(6, 0))
+        RoundedButton(btn_frame, t('btn_cancel'), command=self.destroy, variant='ghost').pack(side='right')
+
+    def _run(self):
+        folder = self.folder_var.get().strip()
+        if not os.path.isdir(folder):
+            messagebox.showwarning(t('dialog_clean_organize_title'), t('warn_choose_folder'), parent=self)
+            self.log_fn(t('warn_choose_folder'))
+            return
+        self.destroy()
+        self.on_run(folder)
 
 
 class PaginationExtractDialog(tk.Toplevel):

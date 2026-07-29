@@ -451,7 +451,8 @@ STRINGS = {
         ),
         'label_ai_extract_enable': 'Extract data with AI',
         'label_ai_instruction': 'What should be extracted?',
-        'caption_ai_instruction': 'Describe it in a sentence, e.g. "product name, price, and review count".',
+        'caption_ai_instruction': 'Describe what to extract in one sentence.',
+        'placeholder_ai_instruction': 'e.g. product name, price, review count',
         'btn_propose_fields': 'Suggest Fields',
         'label_extract_fields': 'Fields to extract',
         'field_col_name': 'Field name',
@@ -461,6 +462,15 @@ STRINGS = {
         'label_export_formats': 'Export as',
         'btn_run_extraction': 'Run Extraction',
         'dialog_ai_extract_title': 'AI Data Extraction',
+        'label_target_folder': 'Target folder',
+        'caption_target_folder': 'Pick a folder you already downloaded with "Download Site".',
+        'warn_choose_folder': '[Warning] Please choose a target folder first.',
+        'dialog_clean_organize_title': 'Make a Tidy Copy',
+        'caption_clean_organize_intro': (
+            'Creates a tidy copy of a downloaded site, sorted into css/js/images/fonts folders. '
+            'The original folder is left untouched.'
+        ),
+        'btn_run_clean_organize': 'Start Organizing',
         'caption_extract_estimate': (
             'Estimated: about {calls} API call(s) for {files} page(s) '
             '(~{rows} row(s) total). Pattern detection found this for free, without calling the AI.'
@@ -1006,7 +1016,8 @@ STRINGS = {
         'caption_api_key': 'AI 기반 데이터 추출에 사용됩니다. 이 컴퓨터에만 저장되고 위에서 고른 프로바이더에만 전송됩니다.',
         'label_ai_extract_enable': 'AI로 데이터 추출하기',
         'label_ai_instruction': '어떤 정보를 추출할까요?',
-        'caption_ai_instruction': '한 문장으로 설명해주세요. 예: "상품명, 가격, 리뷰 개수".',
+        'caption_ai_instruction': '무엇을 뽑을지 한 문장으로 적어주세요.',
+        'placeholder_ai_instruction': '예: 상품명, 가격, 리뷰 개수',
         'btn_propose_fields': '필드 확인',
         'label_extract_fields': '추출할 필드',
         'field_col_name': '필드 이름',
@@ -1016,6 +1027,15 @@ STRINGS = {
         'label_export_formats': '내보내기 형식',
         'btn_run_extraction': '추출 실행',
         'dialog_ai_extract_title': 'AI 데이터 추출',
+        'label_target_folder': '대상 폴더',
+        'caption_target_folder': '먼저 "사이트 다운로드"로 받아둔 폴더를 골라주세요.',
+        'warn_choose_folder': '[경고] 먼저 대상 폴더를 선택해주세요.',
+        'dialog_clean_organize_title': '정리된 사본 만들기',
+        'caption_clean_organize_intro': (
+            '받아둔 사이트를 css/js/images/fonts 폴더로 정돈한 사본을 새로 만듭니다. '
+            '원본 폴더는 그대로 둡니다.'
+        ),
+        'btn_run_clean_organize': '정리 시작',
         'caption_extract_estimate': (
             '예상: {files}개 페이지에 대해 API 호출 약 {calls}회 '
             '(총 약 {rows}행). 패턴 감지로 AI를 부르지 않고 무료로 미리 계산한 값입니다.'

@@ -176,7 +176,7 @@ from webutil import normalize_url, _fetch_sample_html_from_url  # noqa: F401
 from dialogs import (  # noqa: F401
     PreferencesDialog, ExistingMirrorDialog, StartConfirmDialog, ScheduleJobDialog,
     AIExtractPanel, AIExtractRunDialog, PaginationExtractDialog, ClickToSelectDialog,
-    DataToolsDialog, AIRefineDialog, AIScopeRulesDialog, OptionsDialog,
+    DataToolsDialog, AIRefineDialog, AIScopeRulesDialog, OptionsDialog, CleanOrganizeDialog,
 )
 from widgets import (  # noqa: F401
     make_scrollable, combo_width, display_width, _rounded_rect_points, lerp_color,
@@ -1422,17 +1422,17 @@ class MirrorXApp:
             self._open_clean_organize()
 
     def _open_ai_extract_dialog(self, record=None):
-        # 버튼 하나로 '방금 끝난 작업의 결과 폴더'를 대상으로 삼는다 -
-        # '결과 폴더 열기'와 똑같은 방식으로 경로를 구한다.
+        # 다운로드 화면에서 마지막으로 쓴 폴더를 일단 짐작해서 채워두지만,
+        # 크롤링 화면에는 그 값이 안 보여서(의도적으로 숨김) 폴더가 없거나
+        # 다른 폴더를 원하면 다이얼로그 안에서 직접 보고 바꿀 수 있어야 한다 -
+        # 예전엔 이 폴더가 없으면 조용히 아무 일도 안 일어났다(경고가 숨겨진
+        # 로그로만 갔다).
         if record is not None:
-            out_dir = os.path.join(record['base_path'], record['name'])
+            guess_dir = os.path.join(record['base_path'], record['name'])
         else:
-            out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
-        if not os.path.isdir(out_dir):
-            self._log(t('warn_folder_not_found'))
-            return
-        AIExtractRunDialog(self.root, out_dir, self.settings, log_fn=self._log,
-                            on_run=lambda config: self._start_ai_extract_thread(out_dir, config))
+            guess_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
+        AIExtractRunDialog(self.root, guess_dir, self.settings, log_fn=self._log,
+                            on_run=self._start_ai_extract_thread)
 
     def _start_ai_extract_thread(self, out_dir, config):
         if not config.get('enabled') or not config.get('fields'):
@@ -1461,13 +1461,13 @@ class MirrorXApp:
         AIRefineDialog(self.root, records, out_dir, self.settings, log_fn=self._log)
 
     def _open_clean_organize(self):
-        # 버튼 하나로 '방금 끝난 작업의 결과 폴더'를 대상으로 삼는다 - AI 추출과
-        # 똑같은 방식으로 경로를 구한다. 원본은 절대 건드리지 않고 정리된 사본을
-        # 새 폴더에 만드는 것뿐이라 확인 창 없이 바로 실행한다.
-        out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
-        if not os.path.isdir(out_dir):
-            self._log(t('warn_folder_not_found'))
-            return
+        # 다운로드 화면에서 마지막으로 쓴 폴더를 짐작해서 채워두지만, 크롤링
+        # 화면에서는 그 값이 안 보이므로 대상 폴더를 다이얼로그에서 직접
+        # 보고 바꿀 수 있게 한다(AI 추출과 동일한 이유).
+        guess_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
+        CleanOrganizeDialog(self.root, guess_dir, log_fn=self._log, on_run=self._start_clean_organize_thread)
+
+    def _start_clean_organize_thread(self, out_dir):
         self._log(t('log_clean_organize_started'))
 
         def worker():
