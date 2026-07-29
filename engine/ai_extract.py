@@ -320,6 +320,29 @@ def export_records(records, out_dir, base_name, formats):
     if 'xlsx' in formats and openpyxl is None:
         formats = [f for f in formats if f != 'xlsx']
 
+    if 'sqlite' in formats:
+        # 별도 의존성 없이(sqlite3는 표준 라이브러리) 바로 쿼리할 수 있는 DB 파일로 저장한다.
+        # 표 이름은 항상 'extracted_data'로 고정 - 매번 파일명이 달라져도(타임스탬프 포함)
+        # 어디서 어떤 이름으로 조회해야 할지 헷갈리지 않게 하기 위함.
+        import sqlite3
+        db_path = os.path.join(out_dir, f'{base_name}.db')
+        fieldnames = list(records[0].keys())
+        conn = sqlite3.connect(db_path)
+        try:
+            quoted = [f'"{c.replace(chr(34), chr(34) * 2)}"' for c in fieldnames]
+            columns_sql = ', '.join(f'{q} TEXT' for q in quoted)
+            conn.execute(f'CREATE TABLE IF NOT EXISTS extracted_data ({columns_sql})')
+            placeholders = ', '.join('?' for _ in fieldnames)
+            columns_list = ', '.join(quoted)
+            conn.executemany(
+                f'INSERT INTO extracted_data ({columns_list}) VALUES ({placeholders})',
+                [tuple('' if row.get(f) is None else str(row.get(f)) for f in fieldnames) for row in records],
+            )
+            conn.commit()
+        finally:
+            conn.close()
+        saved.append(db_path)
+
     if 'xlsx' in formats:
 
         xlsx_path = os.path.join(out_dir, f'{base_name}.xlsx')

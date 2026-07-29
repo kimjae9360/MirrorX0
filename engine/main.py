@@ -863,9 +863,11 @@ class AIExtractPanel:
         self.csv_var = tk.BooleanVar(value='csv' in existing_formats)
         self.json_var = tk.BooleanVar(value='json' in existing_formats)
         self.xlsx_var = tk.BooleanVar(value='xlsx' in existing_formats)
+        self.sqlite_var = tk.BooleanVar(value='sqlite' in existing_formats)
         ttk.Checkbutton(export_row, text='CSV', variable=self.csv_var).pack(side='left', padx=(10, 0))
         ttk.Checkbutton(export_row, text='JSON', variable=self.json_var).pack(side='left', padx=(10, 0))
         ttk.Checkbutton(export_row, text='Excel', variable=self.xlsx_var).pack(side='left', padx=(10, 0))
+        ttk.Checkbutton(export_row, text='SQLite DB', variable=self.sqlite_var).pack(side='left', padx=(10, 0))
 
         self._on_toggle()
 
@@ -929,6 +931,8 @@ class AIExtractPanel:
             formats.append('json')
         if self.xlsx_var.get():
             formats.append('xlsx')
+        if self.sqlite_var.get():
+            formats.append('sqlite')
         fields = [{'name': nv.get().strip(), 'label': lv.get().strip(), 'type': tv.get()}
                   for nv, lv, tv, _ in self.field_rows if nv.get().strip()]
         return {
