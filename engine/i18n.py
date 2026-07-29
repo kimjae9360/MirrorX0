@@ -422,6 +422,19 @@ STRINGS = {
         'log_ai_extract_started': 'Starting AI extraction...',
         'warn_ai_skip_no_key': '[AI Extraction] Skipped — no API key set.',
 
+        'btn_pagination_extract': 'Extract Paginated List',
+        'dialog_pagination_title': 'Extract a Paginated List',
+        'caption_pagination_intro': (
+            'For listing/catalog pages that continue onto more pages ("Next", "Load more", etc). '
+            "No need to mirror the whole site first — just give the starting page's address and the "
+            'fields you want, and it will keep following the next page and building one combined table.'
+        ),
+        'label_pagination_start_url': 'Starting Page Address',
+        'label_pagination_max_pages': 'Max pages to follow',
+        'warn_pagination_need_url': '[Warning] Please enter the starting page address!',
+        'log_pagination_started': 'Starting paginated extraction...',
+        'log_pagination_no_rows': '[Paginated Extraction] No rows were extracted.',
+
         'log_ai_extract_offer_refine': '{n} row(s) extracted. Want to clean up the table in plain English?',
         'dialog_refine_title': 'Clean up the table',
         'caption_refine_intro': (
@@ -873,6 +886,19 @@ STRINGS = {
         'warn_need_fields': '[경고] 추출할 필드를 최소 하나 이상 추가해주세요!',
         'log_ai_extract_started': 'AI 추출을 시작합니다...',
         'warn_ai_skip_no_key': '[AI 추출] API 키가 설정되어 있지 않아 건너뜁니다.',
+
+        'btn_pagination_extract': '목록 페이지네이션 추출',
+        'dialog_pagination_title': '여러 페이지로 나뉜 목록 추출',
+        'caption_pagination_intro': (
+            '"다음", "더보기" 등으로 계속 다음 페이지가 이어지는 목록/카탈로그 페이지용입니다. '
+            '사이트 전체를 먼저 받을 필요 없이, 시작 페이지 주소와 뽑고 싶은 항목만 알려주면 '
+            '다음 페이지를 계속 따라가며 하나의 표로 이어붙여줍니다.'
+        ),
+        'label_pagination_start_url': '시작 페이지 주소',
+        'label_pagination_max_pages': '최대 몇 페이지까지 따라갈지',
+        'warn_pagination_need_url': '[경고] 시작 페이지 주소를 입력해주세요!',
+        'log_pagination_started': '페이지네이션 추출을 시작합니다...',
+        'log_pagination_no_rows': '[페이지네이션 추출] 추출된 행이 없습니다.',
 
         'log_ai_extract_offer_refine': '{n}개 행을 뽑았어요. 이 표를 자연어로 다듬어볼까요?',
         'dialog_refine_title': '표 다듬기',

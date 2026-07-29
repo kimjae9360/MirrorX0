@@ -17,6 +17,7 @@ from datetime import datetime
 import jobs as jobs_mod
 import scheduler_win
 import smart_crawl
+import pagination_extract
 import ai_extract
 import ai_scope
 import data_refine
@@ -1013,6 +1014,78 @@ class AIExtractRunDialog(tk.Toplevel):
         self.on_run(config)
 
 
+class PaginationExtractDialog(tk.Toplevel):
+    """다음 페이지로 계속 이어지는 목록형 사이트(상품 목록, 게시판 등)를 시작
+    주소 하나만으로 바로 추출한다. 사이트 전체를 먼저 미러링할 필요가 없다 -
+    AI 추출(이미 받아둔 폴더 대상)과 달리, 이건 그 자체로 하나의 독립된
+    데이터 수집 액션이라 별도 진입점으로 둔다."""
+
+    def __init__(self, parent, settings, log_fn, on_run):
+        super().__init__(parent)
+        self.title(t('dialog_pagination_title'))
+        self.configure(bg=BG)
+        self.geometry('520x680')
+        self.minsize(460, 460)
+        self.resizable(True, True)
+        self.transient(parent)
+        self.grab_set()
+        self.settings = settings
+        self.on_run = on_run
+
+        outer = make_scrollable(self)
+        outer.configure(padding=20)
+        ttk.Label(outer, text=t('dialog_pagination_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 6))
+        ttk.Label(outer, text=t('caption_pagination_intro'), style='Caption.TLabel',
+                  wraplength=460, justify='left').pack(anchor='w', pady=(0, 10))
+
+        ttk.Label(outer, text=t('label_pagination_start_url'), style='MutedRoot.TLabel').pack(anchor='w')
+        self.url_var = tk.StringVar()
+        ttk.Entry(outer, textvariable=self.url_var).pack(fill='x', pady=(4, 12), ipady=3)
+
+        def get_sample():
+            url = self.url_var.get().strip()
+            return _fetch_sample_html_from_url(url) if url else None
+
+        self.ai_panel = AIExtractPanel(
+            outer, get_ai_config=lambda: get_active_ai_config(self.settings),
+            log_fn=log_fn, get_sample_html=get_sample)
+        self.ai_panel.enabled_var.set(True)
+        self.ai_panel._on_toggle()
+
+        max_row = ttk.Frame(outer)
+        max_row.pack(fill='x', pady=(6, 4))
+        ttk.Label(max_row, text=t('label_pagination_max_pages'), style='MutedRoot.TLabel').pack(side='left')
+        self.max_pages_var = tk.StringVar(value='20')
+        ttk.Spinbox(max_row, from_=1, to=200, textvariable=self.max_pages_var, width=6).pack(
+            side='left', padx=(10, 0))
+
+        self.use_cookies_var = tk.BooleanVar(value=bool(settings.get('use_local_cookies')))
+        ttk.Checkbutton(outer, text=t('label_use_local_cookies'), variable=self.use_cookies_var).pack(
+            anchor='w', pady=(8, 12))
+
+        btn_frame = ttk.Frame(outer)
+        btn_frame.pack(fill='x', pady=(16, 0))
+        RoundedButton(btn_frame, t('btn_run_extraction'), command=self._run, variant='accent').pack(
+            side='right', padx=(6, 0))
+        RoundedButton(btn_frame, t('btn_cancel'), command=self.destroy, variant='ghost').pack(side='right')
+
+    def _run(self):
+        url = self.url_var.get().strip()
+        if not url:
+            self.ai_panel.log_fn(t('warn_pagination_need_url'))
+            return
+        config = self.ai_panel.get_config()
+        if not config.get('fields'):
+            self.ai_panel.log_fn(t('warn_need_fields'))
+            return
+        try:
+            max_pages = max(1, min(200, int(self.max_pages_var.get())))
+        except (TypeError, ValueError):
+            max_pages = 20
+        self.destroy()
+        self.on_run(url, config, max_pages, self.use_cookies_var.get())
+
+
 class AIRefineDialog(tk.Toplevel):
     """AI 추출로 뽑아낸 표를 자연어로 다듬는다. AIScopeRulesDialog와 같은
     '제안받기 -> 미리보기 -> 적용' 흐름이라 배운 적 없어도 낯설지 않다.
@@ -1970,6 +2043,13 @@ class MirrorXApp:
         self.ai_extract_btn.set_enabled(False)
         self.ai_extract_btn.pack(side='right', padx=(0, 8))
 
+        # 페이지네이션 추출은 사이트를 먼저 받을 필요가 없는 독립된 액션이라
+        # (시작 주소만 있으면 됨) '결과 폴더'와 무관하게 항상 눌리게 둔다.
+        self.pagination_btn = RoundedButton(head, f"📑 {t('btn_pagination_extract')}",
+                                            command=self._open_pagination_dialog,
+                                            variant='ghost', page_bg=PANEL, padx=13, pady=7)
+        self.pagination_btn.pack(side='right', padx=(0, 8))
+
         # height는 '요청 크기'일 뿐이고 실제로는 남는 공간을 채운다. 기본값(24줄)을 두면
         # 창의 최소 높이가 불필요하게 커지므로 작게 잡아둔다.
         self.log_text = scrolledtext.ScrolledText(
@@ -2353,6 +2433,39 @@ class MirrorXApp:
     def _on_ai_extract_done(self, records, out_dir):
         self._log(t('log_ai_extract_offer_refine', n=len(records)))
         AIRefineDialog(self.root, records, out_dir, self.settings, log_fn=self._log)
+
+    def _open_pagination_dialog(self):
+        PaginationExtractDialog(self.root, self.settings, log_fn=self._log,
+                                 on_run=self._start_pagination_thread)
+
+    def _start_pagination_thread(self, url, config, max_pages, use_cookies):
+        ai_config = get_active_ai_config(self.settings)
+        if not ai_ready(ai_config):
+            self._log(t('warn_need_api_key'))
+            return
+        self._log(t('log_pagination_started'))
+        out_dir = os.path.join(CONFIG_DIR, 'pagination_extracts', datetime.now().strftime('%Y%m%d_%H%M%S'))
+
+        def worker():
+            try:
+                rows = pagination_extract.extract_paginated_list(
+                    url, config['fields'], ai_config['api_key'],
+                    log_fn=lambda msg: self.msg_queue.put(('log', msg)),
+                    provider=ai_config['provider'], max_pages=max_pages,
+                    use_local_cookies=use_cookies, pause=(1, 2))
+            except Exception as e:
+                self.msg_queue.put(('log', f'[페이지네이션] {e}'))
+                return
+            if not rows:
+                self.msg_queue.put(('log', t('log_pagination_no_rows')))
+                return
+            os.makedirs(out_dir, exist_ok=True)
+            saved_paths = ai_extract.export_records(rows, out_dir, 'pagination_extract', config['export_formats'])
+            self.msg_queue.put(('log', f'[페이지네이션] {len(rows)}개 행 저장: '
+                                        f'{", ".join(saved_paths) if saved_paths else "없음"}'))
+            self.msg_queue.put(('ai_extract_done', rows, out_dir))
+
+        threading.Thread(target=worker, daemon=True).start()
 
     # ---------------- 동작 ----------------
     def _open_preferences(self):
