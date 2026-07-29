@@ -70,7 +70,38 @@ def _propose_fields_prompt(instruction, sample_html):
 
 
 def _extract_prompt(html):
-    return f'다음 웹페이지에서 필드 값을 추출해줘.\n\n{_strip_html_noise(html)}'
+    return (
+        '다음 웹페이지에서 필드 값을 추출해줘. 각 값은 페이지에 실제로 보이는 '
+        '짧고 의미 있는 텍스트여야 한다 - HTML 태그나 페이지 전체 내용을 그대로 '
+        '옮겨 담지 말고, 해당하는 정보가 없으면 빈 문자열을 넣어줘.\n\n'
+        f'{_strip_html_noise(html)}'
+    )
+
+
+_TAG_RE = re.compile(r'<[^>]+>')
+# 정상적인 추출값(제목/가격/이름 등)은 이보다 훨씬 짧다. 로컬 Ollama 모델은
+# JSON 스키마의 타입("string")은 지키면서도, 실제로는 짧은 값 대신 페이지의
+# HTML 덩어리를 통째로 채워 넣는 경우가 실측으로 확인됐다 - 이럴 때를 대비한
+# 방어적 안전장치(태그 제거 + 길이 제한)다.
+_MAX_FIELD_CHARS = 500
+
+
+def _sanitize_value(value):
+    if isinstance(value, str):
+        cleaned = _TAG_RE.sub(' ', value)
+        # 잘린 값 끝에 닫히지 않은 태그 조각(예: '...<a href=')이 남을 수 있어 같이 제거한다.
+        cleaned = re.sub(r'<[^>]*$', '', cleaned)
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        if len(cleaned) > _MAX_FIELD_CHARS:
+            cleaned = cleaned[:_MAX_FIELD_CHARS].rstrip() + '…'
+        return cleaned
+    return value
+
+
+def _sanitize_row(row):
+    if not isinstance(row, dict):
+        return row
+    return {k: _sanitize_value(v) for k, v in row.items()}
 
 
 def _fields_list_schema():
@@ -232,7 +263,7 @@ def extract_fields(html, fields, api_key, provider='anthropic', model=None):
 
     if result is None:
         raise RuntimeError('AI로부터 추출 결과를 받지 못했습니다.')
-    return result
+    return _sanitize_row(result)
 
 
 def _extract_list_schema(fields):
@@ -279,7 +310,7 @@ def extract_list_fields(items_html, fields, api_key, provider='anthropic', model
         else:
             raise ValueError(f'알 수 없는 AI 프로바이더입니다: {provider!r}')
         all_rows.extend((result or {}).get('items', []))
-    return all_rows
+    return [_sanitize_row(r) for r in all_rows]
 
 
 def export_records(records, out_dir, base_name, formats):
