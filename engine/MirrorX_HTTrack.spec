@@ -54,12 +54,27 @@ coll = COLLECT(
 
 # --- httrack 엔진을 Analysis 밖에서 순수 파일 복사로 배치 ---
 import os
+import time
 import shutil
+
+
+def _rmtree_retry(path, attempts=5, delay=0.5):
+    """빌드 직후 백신 실시간 검사가 방금 만든 파일을 잠깐 잠그는 경우가 있어
+    (Windows에서 흔한 현상), 바로 실패시키지 않고 짧게 재시도한다."""
+    for i in range(attempts):
+        try:
+            shutil.rmtree(path)
+            return
+        except PermissionError:
+            if i == attempts - 1:
+                raise
+            time.sleep(delay)
+
 
 _httrack_src = os.path.join(SPECPATH, 'httrack')
 _httrack_dst = os.path.join(DISTPATH, 'MirrorX_HTTrack', '_internal', 'httrack')
 if os.path.isdir(_httrack_dst):
-    shutil.rmtree(_httrack_dst)
+    _rmtree_retry(_httrack_dst)
 shutil.copytree(_httrack_src, _httrack_dst)
 
 # --- Playwright driver를 같은 이유로 Analysis 밖에서 순수 파일 복사로 배치 ---
@@ -74,6 +89,6 @@ shutil.copytree(_httrack_src, _httrack_dst)
 _playwright_driver_src = os.path.join(SPECPATH, 'venv', 'Lib', 'site-packages', 'playwright', 'driver')
 _playwright_driver_dst = os.path.join(DISTPATH, 'MirrorX_HTTrack', '_internal', 'playwright', 'driver')
 if os.path.isdir(_playwright_driver_dst):
-    shutil.rmtree(_playwright_driver_dst)
+    _rmtree_retry(_playwright_driver_dst)
 shutil.copytree(_playwright_driver_src, _playwright_driver_dst,
                  ignore=shutil.ignore_patterns('.local-browsers'))
