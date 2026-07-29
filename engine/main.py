@@ -379,7 +379,8 @@ class MirrorXApp:
         self._build_hero(root_frame)
 
         bottom = tk.Frame(root_frame, bg=BG)
-        bottom.grid(row=2, column=1, sticky='nsew', padx=26, pady=(4, 20))
+        self._bottom_area = bottom
+        bottom.grid(row=2, column=1, sticky='nsew', padx=26, pady=(4, 12))
         bottom.grid_rowconfigure(0, weight=1)
         bottom.grid_columnconfigure(0, weight=3, uniform='bottom')
         bottom.grid_columnconfigure(1, weight=2, uniform='bottom')
@@ -499,7 +500,7 @@ class MirrorXApp:
 
     # 데이터 추출 도구 - (키, 아이콘, 제목 문자열키, 설명 문자열키).
     # 메인 화면의 '데이터로 뽑기'와 데이터 도구 창이 같은 목록을 쓰도록 한곳에 둔다.
-    DATA_CARD_WIDTH = 380
+    DATA_CARD_WIDTH = 520
     DATA_CARD_HEIGHT = 228
     SKETCH_HEIGHT = 52
 
@@ -597,7 +598,8 @@ class MirrorXApp:
     def _build_hero(self, parent):
         """원형 시작 버튼을 가운데 두고 좌우로 실시간 지표 카드를 배치한다."""
         hero = tk.Frame(parent, bg=BG)
-        hero.grid(row=1, column=1, sticky='ew', padx=26, pady=(10, 4))
+        hero.grid(row=1, column=1, sticky='nsew', padx=26, pady=(6, 2))
+        hero.grid_rowconfigure(0, weight=1)
         # 지표 카드 열은 내용 폭만 차지하게 두고(weight=0), 남는 폭은 전부 가운데가
         # 가져간다 - 그래야 카드가 쓸데없이 길어지지 않고 버튼 주변에 여백이 생긴다.
         hero.grid_columnconfigure(0, weight=0, uniform='hero')
@@ -608,11 +610,13 @@ class MirrorXApp:
         self._left_stats = left_stats
         left_stats.grid(row=0, column=0, sticky='n')
         center = tk.Frame(hero, bg=BG)
-        center.grid(row=0, column=1, padx=48)
+        center.grid(row=0, column=1, padx=48)  # sticky 없음 = 셀 안에서 가운데
         right_stats = tk.Frame(hero, bg=BG)
         self._right_stats = right_stats
         right_stats.grid(row=0, column=2, sticky='n')
 
+        # 통계 카드 사이 간격을 좁혀 히어로 전체 높이를 줄인다 - 그만큼
+        # 아래 설정 카드에 세로 공간이 남아 1080p 화면에서도 안 잘린다.
         self.elapsed_stat = self._stat_card(left_stats, '⏱', t('stat_elapsed'))
         self.links_stat, self._links_caption = self._stat_card(left_stats, '🔗', t('stat_links'),
                                                                with_caption=True)
@@ -636,7 +640,7 @@ class MirrorXApp:
         self.mode_var = tk.StringVar(value='mirror')
         self._mode_caption_var = tk.StringVar(value=t('caption_mode_mirror'))
 
-        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=240)
+        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=190)
         self.start_button.pack()
         # 못 누르는 버튼도 '왜 못 누르는지'는 말해줘야 한다. 위젯이 비활성일 때
         # command를 막으므로, 클릭 자체는 따로 받아서 이유를 띄운다.
@@ -646,7 +650,7 @@ class MirrorXApp:
         # 아래 내용이 위아래로 밀리지 않게 하기 위함.
         self._status_label = tk.Label(self._save_zone, textvariable=self.job_var, bg=BG, fg=FG_MUTED,
                                       height=1, font=(FONTS['ui'], TYPE_BODY, 'bold'))
-        self._status_label.pack(pady=(12, 0))
+        self._status_label.pack(pady=(6, 0))
         # 기존 진행률 로직과의 호환용 - 실제 표시는 원형 버튼의 링이 담당한다.
         self.progress_var = tk.DoubleVar(value=0)
 
@@ -699,7 +703,7 @@ class MirrorXApp:
         높이가 아니라 폭에만 반응시킨다 - 높이에 반응시키면 (버튼이 커짐 → 창이
         더 필요해짐 → 다시 계산) 식으로 서로를 밀어내며 흔들릴 수 있기 때문."""
         # 캔버스에는 글로우 여백도 포함되므로 실제 원보다 조금 크게 잡는다.
-        self.start_button.set_size(max(200, min(240, event.width * 0.28)))
+        self.start_button.set_size(max(160, min(190, event.width * 0.24)))
 
     def _sync_stat_captions(self):
         """모드에 따라 지표 이름을 바꾼다 (미러링은 '스캔한 링크', 스마트는 '방문한 페이지')."""
@@ -710,8 +714,8 @@ class MirrorXApp:
         # inset을 radius와 분리해 작게 준다 - 기본값(=radius)이면 카드마다 위아래로
         # 28px씩 낭비돼 지표 카드 세 장만으로도 화면이 넘친다.
         card = RoundedCard(parent, page_bg=BG, card_bg=STAT_BG, border=STAT_BORDER,
-                           radius=13, inset=5, padding=(12, 8), body_style='Stat.TFrame')
-        card.pack(fill='x', pady=2)
+                           radius=13, inset=4, padding=(12, 6), body_style='Stat.TFrame')
+        card.pack(fill='x', pady=1)
         row = ttk.Frame(card.body, style='Stat.TFrame')
         row.pack(fill='x')
         tk.Label(row, text=icon, bg=STAT_BG, fg=ACCENT,
@@ -732,7 +736,7 @@ class MirrorXApp:
         """좌측 열: 지금 설정된 값들(주소/프로젝트/방식 + 옵션 요약 행).
         expand=False로 두어 카드가 '내용에 맞는 높이'를 갖게 한다 - expand=True면
         남는 공간에 맞춰 내용을 우겨넣어 아래쪽 행이 잘리기 때문."""
-        card = RoundedCard(parent, radius=20, padding=14, inset=10, shadow=True)
+        card = RoundedCard(parent, radius=20, padding=12, inset=8, shadow=True)
         card.pack(fill='x')
         self._settings_card = card
         body = card.body
@@ -740,7 +744,7 @@ class MirrorXApp:
         self._lockable = []
 
         head = ttk.Frame(body, style='Panel.TFrame')
-        head.pack(fill='x', pady=(0, 12))
+        head.pack(fill='x', pady=(0, 8))
         self._project_title_var = tk.StringVar(value=t('panel_project'))
         ttk.Label(head, textvariable=self._project_title_var, style='Header.TLabel').pack(side='left')
         prefs_btn = RoundedButton(head, f"⚙  {t('nav_preferences')}", command=self._open_preferences,
@@ -754,7 +758,7 @@ class MirrorXApp:
         self._url_box.pack(fill='x')
         ttk.Label(self._url_box, text=t('label_urls'), style='Muted.TLabel').pack(anchor='w')
         url_row = ttk.Frame(self._url_box, style='Panel.TFrame')
-        url_row.pack(fill='x', pady=(4, 12))
+        url_row.pack(fill='x', pady=(4, 8))
         self.urls_var = tk.StringVar()
         # 받을 주소가 바뀌면 시작 버튼 활성 여부와 프로젝트 이름 자동 채우기를 갱신한다.
         self.urls_var.trace_add('write', lambda *_a: self._on_urls_changed())
@@ -884,6 +888,10 @@ class MirrorXApp:
             # 설정 카드는 크롤링에서 쓸 일이 없다.
             self._settings_card.pack_forget()
             self._log_col.grid_remove()
+            self._bottom_area.grid_remove()
+            # 아래가 비므로 남는 세로 공간을 히어로가 갖게 해서 카드를 가운데로 둔다.
+            self._root_frame.grid_rowconfigure(1, weight=1)
+            self._root_frame.grid_rowconfigure(2, weight=0)
             self._project_title_var.set(t('panel_project_data'))
         else:
             self._data_zone.pack_forget()
@@ -896,6 +904,9 @@ class MirrorXApp:
             self._right_stats.grid()
             self._settings_card.pack(fill='x')
             self._log_col.grid()
+            self._bottom_area.grid()
+            self._root_frame.grid_rowconfigure(1, weight=0)
+            self._root_frame.grid_rowconfigure(2, weight=1)
             self._project_title_var.set(t('panel_project'))
         self._sync_nav_selection()
         self._sync_start_button()
