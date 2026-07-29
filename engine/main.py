@@ -2158,9 +2158,10 @@ class MirrorXApp:
 
     # 모드별로 보여줄 옵션 행 정의 - (그룹키, 아이콘, 제목 문자열 키)
     _OPTION_ROWS = {
+        # 예약(스케줄러)은 스마트 크롤링 모드에만 둔다 - 이름이 '스마트 스케줄러'인데
+        # 사이트 미러링 탭에도 보이면 어느 쪽 기능인지 헷갈린다.
         'mirror': (('scope', '🎯', 'panel_scope'), ('files', '📦', 'panel_files'),
-                   ('safety', '🛡', 'panel_safety'), ('power', '⏻', 'panel_power'),
-                   ('schedule', '🗓', 'panel_schedule_list')),
+                   ('safety', '🛡', 'panel_safety'), ('power', '⏻', 'panel_power')),
         'smart': (('smart', '🧠', 'panel_smart_options'), ('power', '⏻', 'panel_power'),
                   ('schedule', '🗓', 'panel_schedule_list')),
     }

@@ -349,7 +349,7 @@ STRINGS = {
         'caption_success_rate': '{success} success · {errors} error(s)',
         'panel_recent_previews': 'Recent Downloads',
         'label_no_previews': "Nothing downloaded yet — start a mirror to see it here.",
-        'panel_schedule_list': 'Smart Crawl Jobs',
+        'panel_schedule_list': 'Smart Scheduler',
         'caption_schedule_list': (
             'Runs automatically at the time you set, even while MirrorX0 is closed — as long as the '
             'computer is on and you are logged in (a locked screen is fine).'
@@ -887,7 +887,7 @@ STRINGS = {
         'caption_success_rate': '성공 {success} · 오류 {errors}',
         'panel_recent_previews': '최근 받은 사이트',
         'label_no_previews': '아직 받은 게 없어요 — 미러링을 시작하면 여기에 보여요.',
-        'panel_schedule_list': '스마트 크롤링 작업',
+        'panel_schedule_list': '스마트 스케줄러',
         'caption_schedule_list': (
             'MirrorX0을 꺼두어도 지정한 시각에 자동으로 실행돼요 — 컴퓨터가 켜져 있고 '
             '로그인된 상태여야 합니다 (잠금 화면은 괜찮아요).'
