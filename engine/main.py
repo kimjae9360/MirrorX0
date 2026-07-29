@@ -1816,20 +1816,35 @@ class MirrorXApp:
 
         # 스크롤 없이 한 화면에 다 들어가는 구조. grid의 weight로 창을 줄이면
         # 각 영역이 같이 줄어들고(원형 버튼까지), minsize가 하한을 지켜준다.
-        #   0행 브랜드 배너 / 1행 히어로(통계 · 원형 시작버튼 · 통계) / 2행 하단(설정 | 로그)
+        #   0행 브랜드 배너(전체 폭) / 1행부터: 좌측 고정 사이드바 레일 + 본문
+        #   (본문 안에서 0행 히어로 / 1행 하단(설정 | 로그))
         root_frame = tk.Frame(self.root, bg=BG)
         root_frame.pack(fill='both', expand=True)
-        root_frame.grid_columnconfigure(0, weight=1)
-        root_frame.grid_rowconfigure(2, weight=1)
+        root_frame.grid_columnconfigure(0, weight=0)
+        root_frame.grid_columnconfigure(1, weight=1)
+        root_frame.grid_rowconfigure(1, weight=1)
         self._root_frame = root_frame
 
         header = BrandHeader(root_frame, t('app_subtitle'))
-        header.grid(row=0, column=0, sticky='ew')
+        header.grid(row=0, column=0, columnspan=2, sticky='ew')
 
-        self._build_hero(root_frame)
+        # 예약 작업(백그라운드 스케줄러) 등, 메인 화면 흐름과 무관하게 항상 열 수
+        # 있어야 하는 진입점을 위한 고정 사이드바 - 한 페이지 안에 다 넣으면
+        # 어디서 뭘 하는 기능인지 묻히기 쉬워서, 늘 보이는 자리를 따로 둔다.
+        rail = tk.Frame(root_frame, bg=PANEL, width=76)
+        rail.grid(row=1, column=0, sticky='ns')
+        rail.grid_propagate(False)
+        self._build_rail(rail)
 
-        bottom = tk.Frame(root_frame, bg=BG)
-        bottom.grid(row=2, column=0, sticky='nsew', padx=26, pady=(4, 20))
+        main_content = tk.Frame(root_frame, bg=BG)
+        main_content.grid(row=1, column=1, sticky='nsew')
+        main_content.grid_columnconfigure(0, weight=1)
+        main_content.grid_rowconfigure(1, weight=1)
+
+        self._build_hero(main_content)
+
+        bottom = tk.Frame(main_content, bg=BG)
+        bottom.grid(row=1, column=0, sticky='nsew', padx=26, pady=(4, 20))
         bottom.grid_rowconfigure(0, weight=1)
         bottom.grid_columnconfigure(0, weight=3, uniform='bottom')
         bottom.grid_columnconfigure(1, weight=2, uniform='bottom')
@@ -1925,10 +1940,38 @@ class MirrorXApp:
 
         self._refresh_filter_preview()
 
+    def _build_rail(self, parent):
+        """왼쪽 고정 사이드바. 메인 화면의 '지금 바로 받기' 흐름과는 별개로,
+        언제든 열 수 있어야 하는 기능(예약 작업 등)의 진입점을 모아둔다 -
+        한 페이지 안에 다 우겨넣으면 이런 기능은 있는지도 모르고 지나치기 쉽다."""
+        def rail_button(icon, label, command):
+            btn = tk.Frame(parent, bg=PANEL, cursor='hand2')
+            btn.pack(fill='x', pady=(16, 0))
+            icon_lbl = tk.Label(btn, text=icon, bg=PANEL, fg=FG, font=(FONTS['ui'], 18))
+            icon_lbl.pack(pady=(6, 0))
+            text_lbl = tk.Label(btn, text=label, bg=PANEL, fg=FG_MUTED, font=(FONTS['ui'], TYPE_CAPTION))
+            text_lbl.pack(pady=(2, 6))
+            for w in (btn, icon_lbl, text_lbl):
+                w.bind('<Button-1>', lambda _e: command())
+            return btn
+
+        rail_button('🗓', t('nav_schedule'), self._open_schedule_dialog)
+
+    def _open_schedule_dialog(self):
+        dialog = tk.Toplevel(self.root)
+        dialog.title(t('panel_schedule_list'))
+        dialog.configure(bg=BG)
+        dialog.geometry('820x640')
+        dialog.minsize(640, 420)
+        dialog.transient(self.root)
+        outer = make_scrollable(dialog)
+        outer.configure(padding=20)
+        self._build_schedule_tab(outer)
+
     def _build_hero(self, parent):
         """원형 시작 버튼을 가운데 두고 좌우로 실시간 지표 카드를 배치한다."""
         hero = tk.Frame(parent, bg=BG)
-        hero.grid(row=1, column=0, sticky='ew', padx=26, pady=(10, 4))
+        hero.grid(row=0, column=0, sticky='ew', padx=26, pady=(10, 4))
         # 지표 카드 열은 내용 폭만 차지하게 두고(weight=0), 남는 폭은 전부 가운데가
         # 가져간다 - 그래야 카드가 쓸데없이 길어지지 않고 버튼 주변에 여백이 생긴다.
         hero.grid_columnconfigure(0, weight=0, uniform='hero')
@@ -2366,8 +2409,8 @@ class MirrorXApp:
             'error': t('job_status_error'),
         }
         mode_labels = {'httrack': t('job_mode_httrack'), 'smart': t('job_mode_smart'), 'both': t('job_mode_both')}
-        schedule_labels = {'once': t('schedule_type_once'), 'daily': t('schedule_type_daily'),
-                            'weekly': t('schedule_type_weekly')}
+        schedule_labels = {'once': t('schedule_type_once'), 'hourly': t('schedule_type_hourly'),
+                            'daily': t('schedule_type_daily'), 'weekly': t('schedule_type_weekly')}
         for job in self.jobs:
             row = tk.Frame(self.jobs_list_frame, bg=BG, highlightbackground=BORDER, highlightthickness=1)
             row.pack(fill='x', pady=3)
