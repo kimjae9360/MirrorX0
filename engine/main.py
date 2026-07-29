@@ -2121,6 +2121,15 @@ class MirrorXApp:
         outer.configure(padding=20)
         self._build_schedule_tab(outer)
 
+    # 데이터 추출 도구 - (키, 아이콘, 제목 문자열키, 설명 문자열키).
+    # 메인 화면의 '데이터로 뽑기'와 데이터 도구 창이 같은 목록을 쓰도록 한곳에 둔다.
+    _DATA_TOOLS = (
+        ('ai_extract', '🤖', 'btn_ai_extract', 'desc_ai_extract'),
+        ('pagination', '📑', 'btn_pagination_extract', 'desc_pagination_extract'),
+        ('click_select', '🖱', 'btn_click_select', 'desc_click_select'),
+        ('clean_organize', '🧹', 'btn_clean_organize', 'desc_clean_organize'),
+    )
+
     def _build_hero(self, parent):
         """원형 시작 버튼을 가운데 두고 좌우로 실시간 지표 카드를 배치한다."""
         hero = tk.Frame(parent, bg=BG)
@@ -2146,25 +2155,52 @@ class MirrorXApp:
         self.speed_stat = self._stat_card(right_stats, '⚡', t('stat_speed'))
         self.errors_stat = self._stat_card(right_stats, '⚠', t('stat_errors'))
 
-        # 무엇을 받을지 고르는 곳 - 이 앱의 유일한 진짜 분기라서 시작 버튼 바로 위에 둔다.
+        # 가장 먼저 '무엇을 하려는지'를 고르게 한다. 결과물이 아예 다르기 때문 -
+        # 저장은 '파일 폴더'가, 추출은 '표(CSV)'가 나온다. 이걸 먼저 안 고르면
+        # 시작 버튼과 데이터 도구 중 뭘 눌러야 할지 헷갈린다는 피드백을 반영.
+        self.intent_var = tk.StringVar(value='save')
+        SegmentedControl(center, self.intent_var,
+                         [('save', t('intent_save')), ('data', t('intent_data'))],
+                         command=self._on_intent_changed, page_bg=BG, width=400).pack(pady=(0, 4))
+        self._intent_caption_var = tk.StringVar(value=t('caption_intent_save'))
+        tk.Label(center, textvariable=self._intent_caption_var, bg=BG, fg=FG_MUTED,
+                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=420, justify='center').pack(pady=(0, 10))
+
+        # --- (A) 파일로 저장 ---
+        self._save_zone = tk.Frame(center, bg=BG)
+        self._save_zone.pack()
+
         self.mode_var = tk.StringVar(value='mirror')
-        SegmentedControl(center, self.mode_var,
+        SegmentedControl(self._save_zone, self.mode_var,
                          [('mirror', t('mode_mirror')), ('smart', t('mode_smart'))],
                          command=self._on_mode_changed, page_bg=BG, width=340).pack(pady=(0, 6))
         self._mode_caption_var = tk.StringVar(value=t('caption_mode_mirror'))
-        tk.Label(center, textvariable=self._mode_caption_var, bg=BG, fg=FG_MUTED,
+        tk.Label(self._save_zone, textvariable=self._mode_caption_var, bg=BG, fg=FG_MUTED,
                  font=(FONTS['ui'], TYPE_CAPTION), wraplength=380, justify='center').pack(pady=(0, 10))
 
-        self.start_button = CircularStartButton(center, command=self._on_power_clicked, size=180)
+        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=180)
         self.start_button.pack()
         self.job_var = tk.StringVar()
         # height=1로 한 줄을 미리 잡아둔다. 상태 문구가 나타났다 사라질 때
         # 아래 내용이 위아래로 밀리지 않게 하기 위함.
-        self._status_label = tk.Label(center, textvariable=self.job_var, bg=BG, fg=FG_MUTED,
+        self._status_label = tk.Label(self._save_zone, textvariable=self.job_var, bg=BG, fg=FG_MUTED,
                                       height=1, font=(FONTS['ui'], TYPE_BODY, 'bold'))
         self._status_label.pack(pady=(12, 0))
         # 기존 진행률 로직과의 호환용 - 실제 표시는 원형 버튼의 링이 담당한다.
         self.progress_var = tk.DoubleVar(value=0)
+
+        # --- (B) 데이터로 뽑기 - 목적을 이걸로 고르면 도구가 바로 보인다 ---
+        self._data_zone = tk.Frame(center, bg=BG)
+        for key, icon, title_key, desc_key in self._DATA_TOOLS:
+            row = RoundedCard(self._data_zone, radius=12, padding=10)
+            row.pack(fill='x', pady=3)
+            inner = ttk.Frame(row.body, style='Panel.TFrame')
+            inner.pack(fill='x')
+            tk.Label(inner, text=icon, bg=PANEL, fg=ACCENT,
+                     font=(FONTS['ui'], TYPE_BODY_LARGE)).pack(side='left', padx=(0, 10))
+            ttk.Label(inner, text=t(title_key), style='RowTitle.TLabel').pack(side='left')
+            RoundedButton(inner, t('btn_use_tool'), command=lambda k=key: self._on_data_tool_picked(k),
+                          variant='accent', page_bg=PANEL, padx=14, pady=6).pack(side='right')
 
         hero.bind('<Configure>', self._on_hero_resize)
 
@@ -2321,6 +2357,26 @@ class MirrorXApp:
         self._mode_caption_var.set(t('caption_mode_smart') if smart else t('caption_mode_mirror'))
         self._rebuild_options_area()
         self._sync_stat_captions()
+
+    def _on_intent_changed(self, _value=None):
+        """목적(파일로 저장 / 데이터로 뽑기)에 따라 가운데 영역과 옵션 행을 바꾼다.
+        크롤링 설정(수집 범위·안전장치 등)은 '저장'일 때만 의미가 있어서,
+        '데이터로 뽑기'를 고르면 그 행들은 감춘다 - 고른 목적에 맞는 것만 보이게."""
+        if getattr(self, '_busy', False):
+            # 작업 중에는 화면이 바뀌면 혼란스러우므로 되돌린다.
+            self.intent_var.set('save')
+            return
+        data_mode = self.intent_var.get() == 'data'
+        self._intent_caption_var.set(t('caption_intent_data') if data_mode else t('caption_intent_save'))
+        if data_mode:
+            self._save_zone.pack_forget()
+            self._data_zone.pack(fill='x')
+            self._options_area.pack_forget()
+        else:
+            self._data_zone.pack_forget()
+            self._save_zone.pack()
+            self._options_area.pack(fill='x')
+        self._sync_start_button()
 
     def _option_row(self, parent, group, icon, title, value_var):
         # inset을 작게 줘서 행 높이를 촘촘하게 유지한다(네 행이 스크롤 없이 다 들어가야 함).
