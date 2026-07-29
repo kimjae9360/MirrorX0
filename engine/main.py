@@ -491,6 +491,8 @@ class MirrorXApp:
 
     # 데이터 추출 도구 - (키, 아이콘, 제목 문자열키, 설명 문자열키).
     # 메인 화면의 '데이터로 뽑기'와 데이터 도구 창이 같은 목록을 쓰도록 한곳에 둔다.
+    DATA_CARD_WIDTH = 520
+
     _DATA_TOOLS = (
         ('ai_extract', '🤖', 'btn_ai_extract', 'desc_ai_extract'),
         ('pagination', '📑', 'btn_pagination_extract', 'desc_pagination_extract'),
@@ -637,17 +639,36 @@ class MirrorXApp:
         self.progress_var = tk.DoubleVar(value=0)
 
         # --- (B) 데이터로 뽑기 - 목적을 이걸로 고르면 도구가 바로 보인다 ---
-        self._data_zone = tk.Frame(center, bg=BG)
+        # 폭을 고정해야 카드 4장의 오른쪽 끝이 맞는다. 예전엔 카드마다 내용에
+        # 맞춰 폭이 달라져서 버튼이 카드 배경 밖으로 삐져나왔다.
+        self._data_zone = tk.Frame(center, bg=BG, width=self.DATA_CARD_WIDTH)
+        self._data_zone.pack_propagate(False)
         for key, icon, title_key, desc_key in self._DATA_TOOLS:
-            row = RoundedCard(self._data_zone, radius=12, padding=10)
-            row.pack(fill='x', pady=3)
+            # 버튼을 따로 두지 않고 카드 전체를 누르게 한다 - 행마다 주황 버튼이
+            # 있으면 넷 다 강조되어 오히려 아무것도 강조되지 않는다.
+            row = RoundedCard(self._data_zone, radius=14, padding=16)
+            row.pack(fill='x', pady=5)
             inner = ttk.Frame(row.body, style='Panel.TFrame')
             inner.pack(fill='x')
-            tk.Label(inner, text=icon, bg=PANEL, fg=ACCENT,
-                     font=(FONTS['ui'], TYPE_BODY_LARGE)).pack(side='left', padx=(0, 10))
-            ttk.Label(inner, text=t(title_key), style='RowTitle.TLabel').pack(side='left')
-            RoundedButton(inner, t('btn_use_tool'), command=lambda k=key: self._on_data_tool_picked(k),
-                          variant='accent', page_bg=PANEL, padx=14, pady=6).pack(side='right')
+            icon_lbl = tk.Label(inner, text=icon, bg=PANEL, fg=ACCENT,
+                                font=(FONTS['ui'], TYPE_TITLE))
+            icon_lbl.pack(side='left', padx=(0, 14))
+            chev = tk.Label(inner, text='›', bg=PANEL, fg=FG_MUTED,
+                            font=(FONTS['ui'], TYPE_TITLE))
+            chev.pack(side='right', padx=(8, 0))
+            col = ttk.Frame(inner, style='Panel.TFrame')
+            col.pack(side='left', fill='x', expand=True)
+            title_lbl = ttk.Label(col, text=t(title_key), style='RowTitle.TLabel')
+            title_lbl.pack(anchor='w')
+            desc_lbl = ttk.Label(col, text=t(desc_key), style='Caption.TLabel',
+                                 wraplength=self.DATA_CARD_WIDTH - 120, justify='left')
+            desc_lbl.pack(anchor='w', pady=(2, 0))
+            for w in (row, row.canvas, inner, col, icon_lbl, chev, title_lbl, desc_lbl):
+                w.bind('<Button-1>', lambda _e, k=key: self._on_data_tool_picked(k))
+                try:
+                    w.configure(cursor='hand2')
+                except tk.TclError:
+                    pass
 
         hero.bind('<Configure>', self._on_hero_resize)
 
@@ -698,14 +719,19 @@ class MirrorXApp:
 
         head = ttk.Frame(body, style='Panel.TFrame')
         head.pack(fill='x', pady=(0, 12))
-        ttk.Label(head, text=t('panel_project'), style='Header.TLabel').pack(side='left')
+        self._project_title_var = tk.StringVar(value=t('panel_project'))
+        ttk.Label(head, textvariable=self._project_title_var, style='Header.TLabel').pack(side='left')
         prefs_btn = RoundedButton(head, f"⚙  {t('nav_preferences')}", command=self._open_preferences,
                                   variant='ghost', page_bg=PANEL, padx=14, pady=7)
         prefs_btn.pack(side='right')
         self._lockable.append(prefs_btn)
 
-        ttk.Label(body, text=t('label_urls'), style='Muted.TLabel').pack(anchor='w')
-        url_row = ttk.Frame(body, style='Panel.TFrame')
+        # 라벨과 입력칸을 한 상자로 묶어둔다. 크롤링 화면에서 숨겼다가 되살릴 때
+        # 낱개로 다루면 'before' 기준이 사라져 복원이 실패한다(실제로 겪음).
+        self._url_box = ttk.Frame(body, style='Panel.TFrame')
+        self._url_box.pack(fill='x')
+        ttk.Label(self._url_box, text=t('label_urls'), style='Muted.TLabel').pack(anchor='w')
+        url_row = ttk.Frame(self._url_box, style='Panel.TFrame')
         url_row.pack(fill='x', pady=(4, 12))
         self.urls_var = tk.StringVar()
         # 받을 주소가 바뀌면 시작 버튼 활성 여부와 프로젝트 이름 자동 채우기를 갱신한다.
@@ -719,6 +745,7 @@ class MirrorXApp:
 
         # 프로젝트명 · 수집 방식을 한 줄에 나란히 둔다(세로 공간 절약).
         fields = ttk.Frame(body, style='Panel.TFrame')
+        self._fields_frame = fields
         fields.pack(fill='x', pady=(0, 10))
         fields.grid_columnconfigure(0, weight=1, uniform='field')
         fields.grid_columnconfigure(1, weight=1, uniform='field')
@@ -799,7 +826,8 @@ class MirrorXApp:
         if getattr(self, '_busy', False):
             return
         smart = self.mode_var.get() == 'smart'
-        if smart:
+        # 크롤링 화면에서는 수집 방식 자체가 안 보여야 하므로 여기서 되살리지 않는다.
+        if smart or self.intent_var.get() == 'data':
             self._action_col.grid_remove()
         else:
             self._action_col.grid()
@@ -821,10 +849,20 @@ class MirrorXApp:
             self._save_zone.pack_forget()
             self._data_zone.pack(fill='x')
             self._options_area.pack_forget()
+            # 크롤링에서는 '받을 주소'와 '수집 방식'이 쓰이지 않는다 - 주소는 각
+            # 도구가 자기 창에서 따로 받고, 수집 방식은 HTTrack 전용 값이다.
+            # 남는 건 '어느 폴더의 데이터를 다룰지'(이름 + 저장 위치)뿐이다.
+            self._url_box.pack_forget()
+            self._action_col.grid_remove()
+            self._project_title_var.set(t('panel_project_data'))
         else:
             self._data_zone.pack_forget()
             self._save_zone.pack()
             self._options_area.pack(fill='x')
+            self._url_box.pack(fill='x', before=self._fields_frame)
+            if self.mode_var.get() != 'smart':
+                self._action_col.grid()
+            self._project_title_var.set(t('panel_project'))
         self._sync_nav_selection()
         self._sync_start_button()
 
