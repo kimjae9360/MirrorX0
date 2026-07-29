@@ -45,13 +45,41 @@ def check_disk_space(path):
 CONFIG_DIR = os.path.join(os.environ.get('APPDATA', os.path.expanduser('~')), 'MirrorX')
 CONFIG_FILE = os.path.join(CONFIG_DIR, 'settings.json')
 
-DEFAULT_SETTINGS = None   # main.py가 채워 넣는다 (아래 init_defaults 참고)
+DEFAULT_SETTINGS = {
+    'base_path': os.path.join(os.path.expanduser('~'), 'Downloads', 'MirrorX'),
+    'user_agent': '',
+    'connections': 8,
+    'retries': 1,
+    'timeout': 30,
+    'max_rate': 0,   # 0 = 무제한
+    'robots': '2',   # 0=무시, 1=가능하면 준수, 2=항상 준수
+    'proxy': '',
+    'external_links': False,  # 링크로 연결된 외부 사이트의 파일도 1단계 받아올지
+    'language': 'en',  # UI 언어. 기본값은 영어, 환경설정에서 한국어로 변경 가능
+    # --- 고급 (환경설정 > 고급) ---
+    'referer': '',
+    'lang_header': '',
+    'custom_headers': '',
+    'cookies_file': '',
+    'link_format': 'relative',  # relative(기본, 플래그 없음) / absolute(-K) / original(-K4)
+    'near_files': False,
+    'conn_per_sec': 0,  # 0 = HTTrack 기본값(초당 5개) 그대로 사용
+    'warc': False,
+    'search_index': False,
+    # --- AI 크롤링 ---
+    'ai_provider': 'ollama',  # 'ollama'(기본, 무료·로컬) | 'anthropic' | 'openai' | 'gemini'
+    'nav_collapsed': False,   # 좌측 내비게이션 접힘 상태(다음 실행에도 유지)
+    'anthropic_api_key': '',
+    'openai_api_key': '',
+    'gemini_api_key': '',
+    'use_local_cookies': False,  # 로컬 브라우저 쿠키 연동 (안티봇 우회용)
+}
 
 
 def init_defaults(defaults):
-    """main.py가 갖고 있는 기본 설정값을 여기에 등록한다."""
-    global DEFAULT_SETTINGS
-    DEFAULT_SETTINGS = defaults
+    """예전에는 main.py가 기본값을 갖고 있어서 여기에 등록해줘야 했다.
+    지금은 DEFAULT_SETTINGS가 이 모듈에 있으므로 아무것도 하지 않는다
+    (호출부를 한 번에 다 고치지 않아도 되게 남겨둔 자리)."""
 
 
 def load_settings():
