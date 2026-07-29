@@ -3014,6 +3014,7 @@ class MirrorXApp:
         self._log(t('log_smart_done', n=pages) if ok else t('log_smart_failed'))
         if ok:
             self.open_folder_btn.set_enabled(True)
+            self._log(t('log_data_tools_hint'))
         self._finish_project_record('success' if ok else 'errors')
         if self.power_action_var.get() == 'on_complete' and not self._user_stopped:
             self._schedule_shutdown(60, t('reason_on_complete'))
@@ -3178,6 +3179,7 @@ class MirrorXApp:
         if isinstance(result, int) and result == 0 and engine_errors == 0:
             self._log(f"\n[{ts}] {t('log_success')}")
             self.open_folder_btn.set_enabled(True)
+            self._log(t('log_data_tools_hint'))
             project_status = 'success'
         elif isinstance(result, int) and result == 0 and engine_errors > 0:
             self._log(f"\n[{ts}] {t('log_done_with_errors', n=engine_errors)}")

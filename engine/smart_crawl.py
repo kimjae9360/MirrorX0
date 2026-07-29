@@ -362,6 +362,29 @@ def _within_boundaries(target_url, boundaries):
               for netloc, directory in boundaries)
 
 
+# 대형 쇼핑몰/포털은 자동화된 접속 자체를 막는 경우가 흔하다(예: Akamai 등의
+# 봇 차단 서비스). 이럴 땐 페이지는 "저장됐지만" 내용이 차단 안내문뿐이라 -
+# 실패한 게 아니라 성공한 것처럼 보여서 사용자가 왜 안 되는지 알기 어렵다.
+# 완벽한 감지는 불가능하지만, 흔한 문구 + 유난히 짧은 본문 조합으로 대략
+# 짚어주는 정도는 가능하다(오탐 가능성이 있으니 '~같아요'로 단정하지 않는다).
+_BLOCK_SIGNS = (
+    'access denied', 'you don\'t have permission to access',
+    'unusual traffic', 'blocked', 'captcha', 'are you a robot',
+    '접근이 거부', '접근 권한이 없습니다', '차단되었습니다', '자동화된 요청',
+    '비정상적인 접근', '보안문자',
+)
+
+
+def _looks_blocked(html):
+    """본문 글자 수가 아주 적으면서(진짜 페이지라면 이보다는 김) 흔한 차단
+    문구가 보이면 True. 둘 다 만족해야 하므로 우연히 문구 하나가 들어간
+    정상 페이지를 오탐할 가능성을 줄인다."""
+    text = re.sub(r'<[^>]+>', ' ', html or '').lower()
+    if len(text) > 2000:
+        return False
+    return any(sign in text for sign in _BLOCK_SIGNS)
+
+
 def _auto_scroll(page, max_steps=30, pause_ms=300):
     """지연 로딩 콘텐츠를 끌어내기 위해 페이지 끝까지 반복 스크롤한다."""
     last_height = 0
@@ -486,6 +509,7 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
 
             visited_count = len(visited_urls)
             error_count = 0
+            blocked_notice_shown = False
 
             def report(current_url=''):
                 if progress_fn:
@@ -520,6 +544,12 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                     page.goto(current_url, wait_until=wait_until, timeout=30000)
                     _auto_scroll(page)
                     html = page.content()
+
+                    if not blocked_notice_shown and _looks_blocked(html):
+                        blocked_notice_shown = True
+                        log_fn('[스마트 크롤링] 이 사이트가 자동 접속을 막고 있는 것 같아요 '
+                               '(차단/보안 확인 페이지가 저장된 것으로 보임). 대형 쇼핑몰·포털처럼 '
+                               '봇 차단이 강한 사이트는 이 도구로 받아지지 않을 수 있어요.')
 
                     # 렌더링이 끝난 화면을 host/path 구조 그대로 저장한다
                     # (링크 치환은 전부 받은 뒤 한 번에 한다)

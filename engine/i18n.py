@@ -205,6 +205,10 @@ STRINGS = {
         'warn_playwright_missing': "Smart crawl needs Playwright. Install it with: pip install playwright",
         'log_smart_started': 'Starting smart crawl…',
         'log_smart_done': 'Smart crawl finished: {n} page(s) saved.',
+        'log_data_tools_hint': (
+            "Want this as a spreadsheet instead of files? Click '🧰 Data Tools' above to pull out "
+            'just the info you need.'
+        ),
         'log_smart_failed': 'Smart crawl did not save anything.',
         'stat_pages': 'Pages visited',
         'status_done': 'Done',
@@ -739,6 +743,10 @@ STRINGS = {
         'warn_playwright_missing': '스마트 크롤링에는 Playwright가 필요해요. 설치 명령: pip install playwright',
         'log_smart_started': '스마트 크롤링을 시작합니다…',
         'log_smart_done': '스마트 크롤링 완료: {n}개 페이지를 저장했어요.',
+        'log_data_tools_hint': (
+            '파일 말고 표(데이터)로 뽑고 싶으신가요? 위에 있는 "🧰 데이터 도구"를 눌러 '
+            '원하는 정보만 골라내보세요.'
+        ),
         'log_smart_failed': '스마트 크롤링이 아무것도 저장하지 못했어요.',
         'stat_pages': '방문한 페이지',
         'status_done': '완료되었어요',
