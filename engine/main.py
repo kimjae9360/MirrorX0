@@ -1871,35 +1871,23 @@ class MirrorXApp:
 
         # 스크롤 없이 한 화면에 다 들어가는 구조. grid의 weight로 창을 줄이면
         # 각 영역이 같이 줄어들고(원형 버튼까지), minsize가 하한을 지켜준다.
-        #   0행 브랜드 배너(전체 폭) / 1행부터: 좌측 고정 사이드바 레일 + 본문
-        #   (본문 안에서 0행 히어로 / 1행 하단(설정 | 로그))
+        #   0행 브랜드 배너 / 1행 히어로(통계 · 원형 시작버튼 · 통계) / 2행 하단(설정 | 로그)
+        # 예약 작업은 별도 사이드바가 아니라, 설정 카드 하단의 요약 행(스마트
+        # 크롤링 옵션·완료 후 동작과 같은 자리)으로 둔다 - 지금 하려는 작업의
+        # 설정값들과 나란히 있는 편이 "이게 왜 여기 있는지" 더 잘 와닿는다.
         root_frame = tk.Frame(self.root, bg=BG)
         root_frame.pack(fill='both', expand=True)
-        root_frame.grid_columnconfigure(0, weight=0)
-        root_frame.grid_columnconfigure(1, weight=1)
-        root_frame.grid_rowconfigure(1, weight=1)
+        root_frame.grid_columnconfigure(0, weight=1)
+        root_frame.grid_rowconfigure(2, weight=1)
         self._root_frame = root_frame
 
         header = BrandHeader(root_frame, t('app_subtitle'))
-        header.grid(row=0, column=0, columnspan=2, sticky='ew')
+        header.grid(row=0, column=0, sticky='ew')
 
-        # 예약 작업(백그라운드 스케줄러) 등, 메인 화면 흐름과 무관하게 항상 열 수
-        # 있어야 하는 진입점을 위한 고정 사이드바 - 한 페이지 안에 다 넣으면
-        # 어디서 뭘 하는 기능인지 묻히기 쉬워서, 늘 보이는 자리를 따로 둔다.
-        rail = tk.Frame(root_frame, bg=PANEL, width=76)
-        rail.grid(row=1, column=0, sticky='ns')
-        rail.grid_propagate(False)
-        self._build_rail(rail)
+        self._build_hero(root_frame)
 
-        main_content = tk.Frame(root_frame, bg=BG)
-        main_content.grid(row=1, column=1, sticky='nsew')
-        main_content.grid_columnconfigure(0, weight=1)
-        main_content.grid_rowconfigure(1, weight=1)
-
-        self._build_hero(main_content)
-
-        bottom = tk.Frame(main_content, bg=BG)
-        bottom.grid(row=1, column=0, sticky='nsew', padx=26, pady=(4, 20))
+        bottom = tk.Frame(root_frame, bg=BG)
+        bottom.grid(row=2, column=0, sticky='nsew', padx=26, pady=(4, 20))
         bottom.grid_rowconfigure(0, weight=1)
         bottom.grid_columnconfigure(0, weight=3, uniform='bottom')
         bottom.grid_columnconfigure(1, weight=2, uniform='bottom')
@@ -1995,23 +1983,6 @@ class MirrorXApp:
 
         self._refresh_filter_preview()
 
-    def _build_rail(self, parent):
-        """왼쪽 고정 사이드바. 메인 화면의 '지금 바로 받기' 흐름과는 별개로,
-        언제든 열 수 있어야 하는 기능(예약 작업 등)의 진입점을 모아둔다 -
-        한 페이지 안에 다 우겨넣으면 이런 기능은 있는지도 모르고 지나치기 쉽다."""
-        def rail_button(icon, label, command):
-            btn = tk.Frame(parent, bg=PANEL, cursor='hand2')
-            btn.pack(fill='x', pady=(16, 0))
-            icon_lbl = tk.Label(btn, text=icon, bg=PANEL, fg=FG, font=(FONTS['ui'], 18))
-            icon_lbl.pack(pady=(6, 0))
-            text_lbl = tk.Label(btn, text=label, bg=PANEL, fg=FG_MUTED, font=(FONTS['ui'], TYPE_CAPTION))
-            text_lbl.pack(pady=(2, 6))
-            for w in (btn, icon_lbl, text_lbl):
-                w.bind('<Button-1>', lambda _e: command())
-            return btn
-
-        rail_button('🗓', t('nav_schedule'), self._open_schedule_dialog)
-
     def _open_schedule_dialog(self):
         dialog = tk.Toplevel(self.root)
         dialog.title(t('panel_schedule_list'))
@@ -2026,7 +1997,7 @@ class MirrorXApp:
     def _build_hero(self, parent):
         """원형 시작 버튼을 가운데 두고 좌우로 실시간 지표 카드를 배치한다."""
         hero = tk.Frame(parent, bg=BG)
-        hero.grid(row=0, column=0, sticky='ew', padx=26, pady=(10, 4))
+        hero.grid(row=1, column=0, sticky='ew', padx=26, pady=(10, 4))
         # 지표 카드 열은 내용 폭만 차지하게 두고(weight=0), 남는 폭은 전부 가운데가
         # 가져간다 - 그래야 카드가 쓸데없이 길어지지 않고 버튼 주변에 여백이 생긴다.
         hero.grid_columnconfigure(0, weight=0, uniform='hero')
@@ -2188,8 +2159,10 @@ class MirrorXApp:
     # 모드별로 보여줄 옵션 행 정의 - (그룹키, 아이콘, 제목 문자열 키)
     _OPTION_ROWS = {
         'mirror': (('scope', '🎯', 'panel_scope'), ('files', '📦', 'panel_files'),
-                   ('safety', '🛡', 'panel_safety'), ('power', '⏻', 'panel_power')),
-        'smart': (('smart', '🧠', 'panel_smart_options'), ('power', '⏻', 'panel_power')),
+                   ('safety', '🛡', 'panel_safety'), ('power', '⏻', 'panel_power'),
+                   ('schedule', '🗓', 'panel_schedule_list')),
+        'smart': (('smart', '🧠', 'panel_smart_options'), ('power', '⏻', 'panel_power'),
+                  ('schedule', '🗓', 'panel_schedule_list')),
     }
 
     def _rebuild_options_area(self):
@@ -2305,6 +2278,11 @@ class MirrorXApp:
     def _open_options_dialog(self, group):
         if getattr(self, '_busy', False):
             return
+        if group == 'schedule':
+            # 예약 작업은 지금 폼의 값이 아니라 별도로 등록해둔 작업 목록이라,
+            # OptionsDialog가 아니라 그 목록을 보여주는 창을 연다.
+            self._open_schedule_dialog()
+            return
         OptionsDialog(self.root, self, group)
 
     def _save_use_local_cookies(self):
@@ -2324,6 +2302,7 @@ class MirrorXApp:
         if 'scope' not in self._summary_vars:
             # 스마트 모드에서는 미러링 전용 요약 행이 없으므로 여기서 끝낸다.
             self._set_power_summary()
+            self._set_schedule_summary()
             return
         depth = self._effective_depth()
         scope_text = t('scope_unlimited') if depth is None else t('scope_n_levels', depth=depth)
@@ -2344,6 +2323,7 @@ class MirrorXApp:
         self._summary_vars['safety'].set(' · '.join(safety_parts) if safety_parts else t('value_off'))
 
         self._set_power_summary()
+        self._set_schedule_summary()
 
     def _set_power_summary(self):
         mode = self.power_action_var.get()
@@ -2354,6 +2334,12 @@ class MirrorXApp:
         else:
             power_text = t('power_text_none')
         self._summary_vars['power'].set(power_text)
+
+    def _set_schedule_summary(self):
+        if 'schedule' not in self._summary_vars:
+            return
+        n = len(self.jobs)
+        self._summary_vars['schedule'].set(t('summary_schedule_value', n=n) if n else t('summary_schedule_none'))
 
     def _sync_start_button(self):
         """받을 주소가 있어야 시작 버튼이 활성화된다."""
@@ -2432,6 +2418,11 @@ class MirrorXApp:
         self._refresh_jobs_panel()
 
     def _refresh_jobs_panel(self):
+        # 예약 작업 다이얼로그는 열 때마다 새로 만들고 닫으면 그대로 없어지므로,
+        # 닫혀 있는 동안(=창 밖에서 작업이 저장/삭제됐을 때) 옛 프레임을 건드리지
+        # 않도록 존재 여부를 확인한다.
+        if not hasattr(self, 'jobs_list_frame') or not self.jobs_list_frame.winfo_exists():
+            return
         for child in self.jobs_list_frame.winfo_children():
             child.destroy()
 
@@ -2478,6 +2469,7 @@ class MirrorXApp:
         self.jobs = jobs_mod.upsert_job(self.jobs, job)
         jobs_mod.save_jobs(CONFIG_DIR, self.jobs)
         self._refresh_jobs_panel()
+        self._set_schedule_summary()
         self._log(t('log_job_saved'))
 
     def _delete_job(self, job):
@@ -2485,6 +2477,7 @@ class MirrorXApp:
         self.jobs = jobs_mod.remove_job(self.jobs, job['id'])
         jobs_mod.save_jobs(CONFIG_DIR, self.jobs)
         self._refresh_jobs_panel()
+        self._set_schedule_summary()
         self._log(t('log_job_deleted'))
 
     def _panel(self, parent, title, expand=False):
