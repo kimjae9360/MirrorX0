@@ -1217,6 +1217,61 @@ class ClickToSelectDialog(tk.Toplevel):
         self.on_extract(items_html, config)
 
 
+class DataToolsDialog(tk.Toplevel):
+    """AI 추출/페이지네이션 추출/클릭해서 고르기/정리된 사본 만들기 - 4가지
+    데이터 도구를 하나의 진입점으로 모은다. 각각 작은 아이콘 버튼으로 흩어
+    놓으면 뭐가 뭔지, 언제 쓰는 건지 알기 어렵다는 피드백을 반영 - 여기서는
+    각 도구가 무엇이고 언제 쓰는지 한 줄 설명과 함께 고르게 한다."""
+
+    def __init__(self, parent, has_project, on_pick):
+        super().__init__(parent)
+        self.title(t('dialog_data_tools_title'))
+        self.configure(bg=BG)
+        self.geometry('580x560')
+        self.minsize(480, 420)
+        self.resizable(True, True)
+        self.transient(parent)
+        self.grab_set()
+        self.on_pick = on_pick
+
+        outer = make_scrollable(self)
+        outer.configure(padding=20)
+        ttk.Label(outer, text=t('dialog_data_tools_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 4))
+        ttk.Label(outer, text=t('caption_data_tools_intro'), style='Caption.TLabel',
+                  wraplength=500, justify='left').pack(anchor='w', pady=(0, 14))
+
+        tools = [
+            ('ai_extract', '🤖', t('btn_ai_extract'), t('desc_ai_extract'), has_project),
+            ('pagination', '📑', t('btn_pagination_extract'), t('desc_pagination_extract'), True),
+            ('click_select', '🖱', t('btn_click_select'), t('desc_click_select'), True),
+            ('clean_organize', '🧹', t('btn_clean_organize'), t('desc_clean_organize'), has_project),
+        ]
+        for key, icon, title, desc, enabled in tools:
+            self._tool_row(outer, key, icon, title, desc, enabled)
+
+    def _tool_row(self, parent, key, icon, title, desc, enabled):
+        card = RoundedCard(parent, radius=12, padding=12)
+        card.pack(fill='x', pady=(0, 10))
+        row = ttk.Frame(card.body, style='Panel.TFrame')
+        row.pack(fill='x')
+        tk.Label(row, text=icon, bg=PANEL, fg=ACCENT, font=(FONTS['ui'], 20)).pack(side='left', padx=(0, 12))
+        text_col = ttk.Frame(row, style='Panel.TFrame')
+        text_col.pack(side='left', fill='x', expand=True)
+        ttk.Label(text_col, text=title, style='RowTitle.TLabel').pack(anchor='w')
+        ttk.Label(text_col, text=desc, style='Caption.TLabel', wraplength=340, justify='left').pack(anchor='w')
+        if not enabled:
+            tk.Label(text_col, text=t('caption_tool_needs_project'), bg=PANEL, fg=CRITICAL,
+                     font=(FONTS['ui'], TYPE_CAPTION)).pack(anchor='w', pady=(4, 0))
+        btn = RoundedButton(row, t('btn_use_tool'), command=lambda: self._pick(key),
+                             variant='accent' if enabled else 'ghost')
+        btn.pack(side='right')
+        btn.set_enabled(enabled)
+
+    def _pick(self, key):
+        self.destroy()
+        self.on_pick(key)
+
+
 class AIRefineDialog(tk.Toplevel):
     """AI 추출로 뽑아낸 표를 자연어로 다듬는다. AIScopeRulesDialog와 같은
     '제안받기 -> 미리보기 -> 적용' 흐름이라 배운 적 없어도 낯설지 않다.
@@ -2210,34 +2265,16 @@ class MirrorXApp:
         self.open_folder_btn.set_enabled(False)
         self.open_folder_btn.pack(side='right')
 
-        # 받아온 결과에서 AI로 데이터를 뽑아내는 진입점. '결과 폴더 열기'와 똑같은
-        # 시점(작업이 끝나 폴더가 생겼을 때)에만 눌리게 한다.
-        self.ai_extract_btn = RoundedButton(head, f"🤖 {t('btn_ai_extract')}", command=self._open_ai_extract_dialog,
+        # AI 추출/페이지네이션 추출/클릭해서 고르기/정리된 사본 만들기 - 4개를 각각
+        # 작은 아이콘 버튼으로 늘어놓으면 뭐가 뭔지, 언제 쓰는 건지 알기 어렵다.
+        # 하나의 진입점으로 모으고, 다이얼로그 안에서 각각 설명과 함께 고르게 한다.
+        # 버튼 자체는 항상 눌리게 둔다 - 4개 중 절반(페이지네이션 추출/클릭해서
+        # 고르기)은 완료된 프로젝트 없이도 쓸 수 있어서다. 나머지 절반(AI 추출/
+        # 정리된 사본 만들기)은 다이얼로그 안에서 그 항목만 비활성화해 보여준다.
+        self.data_tools_btn = RoundedButton(head, f"🧰 {t('btn_data_tools')}",
+                                            command=self._open_data_tools_dialog,
                                             variant='ghost', page_bg=PANEL, padx=13, pady=7)
-        self.ai_extract_btn.set_enabled(False)
-        self.ai_extract_btn.pack(side='right', padx=(0, 8))
-
-        # 원본은 절대 건드리지 않고, 정리된 '사본'을 새 폴더에 만드는 액션이라
-        # '결과 폴더 열기'와 똑같은 시점(완료된 프로젝트가 있을 때)에만 눌리게 한다.
-        self.clean_organize_btn = RoundedButton(head, f"🧹 {t('btn_clean_organize')}",
-                                                command=self._open_clean_organize,
-                                                variant='ghost', page_bg=PANEL, padx=13, pady=7)
-        self.clean_organize_btn.set_enabled(False)
-        self.clean_organize_btn.pack(side='right', padx=(0, 8))
-
-        # 페이지네이션 추출은 사이트를 먼저 받을 필요가 없는 독립된 액션이라
-        # (시작 주소만 있으면 됨) '결과 폴더'와 무관하게 항상 눌리게 둔다.
-        self.pagination_btn = RoundedButton(head, f"📑 {t('btn_pagination_extract')}",
-                                            command=self._open_pagination_dialog,
-                                            variant='ghost', page_bg=PANEL, padx=13, pady=7)
-        self.pagination_btn.pack(side='right', padx=(0, 8))
-
-        # 클릭해서 고르기도 페이지네이션 추출과 마찬가지로 시작 주소만 있으면
-        # 되는 독립 액션이라 항상 눌리게 둔다.
-        self.click_select_btn = RoundedButton(head, f"🖱 {t('btn_click_select')}",
-                                              command=self._open_click_select_dialog,
-                                              variant='ghost', page_bg=PANEL, padx=13, pady=7)
-        self.click_select_btn.pack(side='right', padx=(0, 8))
+        self.data_tools_btn.pack(side='right', padx=(0, 8))
 
         # height는 '요청 크기'일 뿐이고 실제로는 남는 공간을 채운다. 기본값(24줄)을 두면
         # 창의 최소 높이가 불필요하게 커지므로 작게 잡아둔다.
@@ -2584,6 +2621,21 @@ class MirrorXApp:
         save_projects(self.projects)
         self._refresh_projects_panel()
 
+    def _open_data_tools_dialog(self):
+        out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
+        has_project = os.path.isdir(out_dir)
+        DataToolsDialog(self.root, has_project, on_pick=self._on_data_tool_picked)
+
+    def _on_data_tool_picked(self, key):
+        if key == 'ai_extract':
+            self._open_ai_extract_dialog()
+        elif key == 'pagination':
+            self._open_pagination_dialog()
+        elif key == 'click_select':
+            self._open_click_select_dialog()
+        elif key == 'clean_organize':
+            self._open_clean_organize()
+
     def _open_ai_extract_dialog(self, record=None):
         # 버튼 하나로 '방금 끝난 작업의 결과 폴더'를 대상으로 삼는다 -
         # '결과 폴더 열기'와 똑같은 방식으로 경로를 구한다.
@@ -2631,7 +2683,7 @@ class MirrorXApp:
         if not os.path.isdir(out_dir):
             self._log(t('warn_folder_not_found'))
             return
-        self.clean_organize_btn.set_enabled(False)
+        self.data_tools_btn.set_enabled(False)
         self._log(t('log_clean_organize_started'))
 
         def worker():
@@ -2646,7 +2698,7 @@ class MirrorXApp:
         threading.Thread(target=worker, daemon=True).start()
 
     def _on_clean_organize_done(self, result_dir):
-        self.clean_organize_btn.set_enabled(True)
+        self.data_tools_btn.set_enabled(True)
         if result_dir:
             self._log(t('log_clean_organize_done', path=result_dir))
 
@@ -2913,8 +2965,6 @@ class MirrorXApp:
         self.start_button.set_running(True)
         self._set_busy(True)
         self.open_folder_btn.set_enabled(False)
-        self.ai_extract_btn.set_enabled(False)
-        self.clean_organize_btn.set_enabled(False)
         self._clear_log()
         self._reset_progress_ui()
         self._log(t('log_smart_started'))
@@ -2971,8 +3021,6 @@ class MirrorXApp:
         self._log(t('log_smart_done', n=pages) if ok else t('log_smart_failed'))
         if ok:
             self.open_folder_btn.set_enabled(True)
-            self.ai_extract_btn.set_enabled(True)
-            self.clean_organize_btn.set_enabled(True)
         self._finish_project_record('success' if ok else 'errors')
         if self.power_action_var.get() == 'on_complete' and not self._user_stopped:
             self._schedule_shutdown(60, t('reason_on_complete'))
@@ -3005,8 +3053,6 @@ class MirrorXApp:
         self.start_button.set_running(True)
         self._set_busy(True)
         self.open_folder_btn.set_enabled(False)
-        self.ai_extract_btn.set_enabled(False)
-        self.clean_organize_btn.set_enabled(False)
         self._clear_log()
         self._reset_progress_ui()
 
@@ -3139,20 +3185,14 @@ class MirrorXApp:
         if isinstance(result, int) and result == 0 and engine_errors == 0:
             self._log(f"\n[{ts}] {t('log_success')}")
             self.open_folder_btn.set_enabled(True)
-            self.ai_extract_btn.set_enabled(True)
-            self.clean_organize_btn.set_enabled(True)
             project_status = 'success'
         elif isinstance(result, int) and result == 0 and engine_errors > 0:
             self._log(f"\n[{ts}] {t('log_done_with_errors', n=engine_errors)}")
             self.open_folder_btn.set_enabled(True)
-            self.ai_extract_btn.set_enabled(True)
-            self.clean_organize_btn.set_enabled(True)
             project_status = 'errors'
         elif isinstance(result, int):
             self._log(f"\n[{ts}] {t('log_done_code', code=result)}")
             self.open_folder_btn.set_enabled(True)
-            self.ai_extract_btn.set_enabled(True)
-            self.clean_organize_btn.set_enabled(True)
             project_status = 'errors'
         else:
             self._log(f"\n[{ts}] {t('log_fatal_error', result=result)}")

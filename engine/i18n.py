@@ -463,6 +463,33 @@ STRINGS = {
         'log_click_select_started': 'Starting point-and-click extraction...',
         'log_click_select_no_rows': '[Point & Click] No rows were extracted.',
 
+        'btn_data_tools': 'Data Tools',
+        'dialog_data_tools_title': 'Data Tools',
+        'caption_data_tools_intro': (
+            'Turn crawled pages into clean, structured data. Pick the one that fits what '
+            'you have right now.'
+        ),
+        'desc_ai_extract': (
+            "Already mirrored a site? Pull out just the fields you want (name, price, etc.) "
+            'from every page into a table.'
+        ),
+        'desc_pagination_extract': (
+            'A listing/catalog page that continues onto more pages ("Next", "Load more")? '
+            'Give the starting address and it follows every page into one combined table — '
+            'no need to mirror the site first.'
+        ),
+        'desc_click_select': (
+            'Not sure how to describe what you want, or automatic detection got confused? '
+            'Open a real browser, hover and click one example item, and it finds every '
+            'similar item on the page.'
+        ),
+        'desc_clean_organize': (
+            'Already mirrored a site? Make a tidy copy with assets sorted into css/js/images/'
+            'fonts and HTTrack bookkeeping files removed — handy for referencing while developing.'
+        ),
+        'caption_tool_needs_project': 'Needs a completed project (mirror or smart-crawl a site first).',
+        'btn_use_tool': 'Use',
+
         'btn_clean_organize': 'Make a Tidy Copy',
         'log_clean_organize_started': (
             'Creating a tidy copy (assets sorted into css/js/images/fonts, HTTrack '
@@ -962,6 +989,31 @@ STRINGS = {
         'warn_click_select_failed': '[경고] 항목을 고르지 못했습니다: {e}',
         'log_click_select_started': '클릭해서 고르기 추출을 시작합니다...',
         'log_click_select_no_rows': '[클릭해서 고르기] 추출된 행이 없습니다.',
+
+        'btn_data_tools': '데이터 도구',
+        'dialog_data_tools_title': '데이터 도구',
+        'caption_data_tools_intro': (
+            '받아온 페이지를 깔끔한 표 데이터로 바꿉니다. 지금 상황에 맞는 도구를 골라주세요.'
+        ),
+        'desc_ai_extract': (
+            '이미 사이트를 받아뒀나요? 원하는 필드(이름, 가격 등)만 골라 모든 페이지에서 '
+            '표로 뽑아냅니다.'
+        ),
+        'desc_pagination_extract': (
+            '"다음", "더보기"로 계속 이어지는 목록/카탈로그 페이지인가요? 시작 주소만 '
+            '주면 모든 페이지를 따라가며 하나의 표로 이어붙입니다 - 사이트를 먼저 받을 '
+            '필요가 없어요.'
+        ),
+        'desc_click_select': (
+            '뭘 원하는지 설명하기 애매하거나 자동 감지가 헷갈려하나요? 실제 브라우저를 '
+            '열어 예시 항목 하나를 클릭하면, 페이지에서 비슷한 항목을 전부 찾아줍니다.'
+        ),
+        'desc_clean_organize': (
+            '이미 사이트를 받아뒀나요? 자산을 css/js/images/fonts로 정리하고 HTTrack '
+            '관리 파일을 뺀 깔끔한 사본을 만듭니다 - 개발 참고용으로 좋아요.'
+        ),
+        'caption_tool_needs_project': '완료된 프로젝트가 필요합니다(먼저 사이트를 미러링/스마트 크롤링하세요).',
+        'btn_use_tool': '사용',
 
         'btn_clean_organize': '정리된 사본 만들기',
         'log_clean_organize_started': (
