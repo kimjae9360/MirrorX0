@@ -394,6 +394,7 @@ class MirrorXApp:
         settings_col = tk.Frame(bottom, bg=BG)
         settings_col.grid(row=0, column=0, sticky='nsew', padx=(0, 9))
         log_col = tk.Frame(bottom, bg=BG)
+        self._log_col = log_col
         log_col.grid(row=0, column=1, sticky='nsew', padx=(9, 0))
         self._build_settings_column(settings_col)
         self._build_log_column(log_col)
@@ -498,8 +499,8 @@ class MirrorXApp:
 
     # 데이터 추출 도구 - (키, 아이콘, 제목 문자열키, 설명 문자열키).
     # 메인 화면의 '데이터로 뽑기'와 데이터 도구 창이 같은 목록을 쓰도록 한곳에 둔다.
-    DATA_CARD_WIDTH = 360
-    DATA_CARD_HEIGHT = 176
+    DATA_CARD_WIDTH = 380
+    DATA_CARD_HEIGHT = 228
     SKETCH_HEIGHT = 52
 
     _DATA_TOOLS = (
@@ -635,7 +636,7 @@ class MirrorXApp:
         self.mode_var = tk.StringVar(value='mirror')
         self._mode_caption_var = tk.StringVar(value=t('caption_mode_mirror'))
 
-        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=200)
+        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=240)
         self.start_button.pack()
         # 못 누르는 버튼도 '왜 못 누르는지'는 말해줘야 한다. 위젯이 비활성일 때
         # command를 막으므로, 클릭 자체는 따로 받아서 이유를 띄운다.
@@ -663,7 +664,7 @@ class MirrorXApp:
             holder.grid_propagate(False)
             holder.configure(height=self.DATA_CARD_HEIGHT)
 
-            row = RoundedCard(holder, radius=20, padding=16, shadow=True)
+            row = RoundedCard(holder, radius=26, padding=16, shadow=True)
             row.place(x=0, y=0, width=self.DATA_CARD_WIDTH, height=self.DATA_CARD_HEIGHT)
             head_row = ttk.Frame(row.body, style='Panel.TFrame')
             head_row.pack(fill='x')
@@ -698,7 +699,7 @@ class MirrorXApp:
         높이가 아니라 폭에만 반응시킨다 - 높이에 반응시키면 (버튼이 커짐 → 창이
         더 필요해짐 → 다시 계산) 식으로 서로를 밀어내며 흔들릴 수 있기 때문."""
         # 캔버스에는 글로우 여백도 포함되므로 실제 원보다 조금 크게 잡는다.
-        self.start_button.set_size(max(170, min(200, event.width * 0.24)))
+        self.start_button.set_size(max(200, min(240, event.width * 0.28)))
 
     def _sync_stat_captions(self):
         """모드에 따라 지표 이름을 바꾼다 (미러링은 '스캔한 링크', 스마트는 '방문한 페이지')."""
@@ -882,6 +883,7 @@ class MirrorXApp:
             # 각 도구가 자기 창에서 필요한 값을 직접 받으므로, 아래 프로젝트
             # 설정 카드는 크롤링에서 쓸 일이 없다.
             self._settings_card.pack_forget()
+            self._log_col.grid_remove()
             self._project_title_var.set(t('panel_project_data'))
         else:
             self._data_zone.pack_forget()
@@ -893,6 +895,7 @@ class MirrorXApp:
             self._left_stats.grid()
             self._right_stats.grid()
             self._settings_card.pack(fill='x')
+            self._log_col.grid()
             self._project_title_var.set(t('panel_project'))
         self._sync_nav_selection()
         self._sync_start_button()

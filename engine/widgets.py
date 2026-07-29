@@ -332,7 +332,11 @@ class CircularStartButton(tk.Canvas):
         if self._clickable():
             glow_color = SUCCESS if self._running else ACCENT
             # LED처럼 또렷하게 빛나 보이도록 번짐을 진하게 준다.
-            peak = 0.78 if self._hover else 0.55
+            # 실행 중에는 한 단계 더 밝게 해서 '지금 돌아가는 중'이 눈에 띄게 한다.
+            if self._running:
+                peak = 0.95 if self._hover else 0.82
+            else:
+                peak = 0.78 if self._hover else 0.55
             steps = max(6, int(glow))
             for i in range(steps):
                 depth = (i + 1) / steps          # 안쪽으로 갈수록 1에 가까워진다
