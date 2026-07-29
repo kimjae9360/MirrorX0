@@ -18,6 +18,7 @@ Tkinter/ttk에는 '둥근 모서리'라는 개념이 아예 없다. 그래서 �
 """
 import tkinter as tk
 from tkinter import ttk
+from tkinter import font as tkfont
 
 from i18n import t
 from theme import *  # noqa: F403  (색상/글자크기 상수)
@@ -103,6 +104,18 @@ def lerp_color(color_a, color_b, ratio):
     a, b = _hex_to_rgb(color_a), _hex_to_rgb(color_b)
     mixed = tuple(round(a[i] + (b[i] - a[i]) * ratio) for i in range(3))
     return '#%02x%02x%02x' % mixed
+
+
+def _fit_bold_font_size(text, max_width, base_size, min_size=12):
+    """굵은 글씨로 text를 그렸을 때 max_width(px) 안에 들어가는 가장 큰
+    글자 크기를 찾는다. '100%'처럼 자리수가 늘어나도 원 밖으로 삐져나가지
+    않게, 고정 비율 대신 실제 측정값으로 정확히 맞춘다."""
+    size = base_size
+    while size > min_size:
+        if tkfont.Font(family=FONTS['ui'], size=size, weight='bold').measure(text) <= max_width:
+            break
+        size -= 1
+    return size
 
 
 def draw_vertical_gradient(canvas, x1, y1, x2, y2, color_top, color_bottom, tags=None):
@@ -394,8 +407,13 @@ class CircularStartButton(tk.Canvas):
         #    실행 중  : 큰 완료 퍼센트 + 아래에 '중지'
         #    대기/비활성: 전원 아이콘 + '시작'
         if self._running:
-            self.create_text(cx, cy - s * 0.045, text=f'{self._progress:.0f}%', fill=FG,
-                             font=(FONTS['ui'], max(20, int(s * 0.20)), 'bold'))
+            pct_text = f'{self._progress:.0f}%'
+            # 자릿수가 늘어도(예: 9% -> 100%) 안쪽 원 밖으로 삐져나가지 않게,
+            # 고정 비율 대신 실제 텍스트 폭을 재서 맞춘다.
+            max_text_w = max(10, radius * 2 * 0.7) if radius > 4 else s * 0.5
+            pct_size = _fit_bold_font_size(pct_text, max_text_w, base_size=max(20, int(s * 0.20)), min_size=9)
+            self.create_text(cx, cy - s * 0.045, text=pct_text, fill=FG,
+                             font=(FONTS['ui'], pct_size, 'bold'))
             self.create_text(cx, cy + s * 0.145, text=t('btn_stop'), fill=CRITICAL,
                              font=(FONTS['ui'], max(11, int(s * 0.078)), 'bold'))
         else:

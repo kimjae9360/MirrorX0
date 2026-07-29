@@ -1661,7 +1661,11 @@ class MirrorXApp:
         # 혼란스럽다. 지금까지 도달한 최대치를 유지해 링이 뒤로 가지 않게 한다.
         # (실제 숫자는 '스캔한 링크' 카드에 그대로 보여주므로 정보는 잃지 않는다.)
         self._max_progress = max(getattr(self, '_max_progress', 0.0), pct)
-        self.start_button.set_progress(self._max_progress)
+        # 딱 그 순간엔 done==total이어도 이후에 새 링크가 더 발견되면 계속
+        # 돌아간다 - "100%인데 왜 계속 돌아가?"로 보이지 않게, 실제로 끝났다는
+        # 신호(_on_job_done -> set_running(False))가 오기 전까지는 100%를
+        # 절대 보여주지 않는다.
+        self.start_button.set_progress(min(99.0, self._max_progress))
         job_raw = snapshot.get('current_job', '')
         self._set_status(get_job_labels().get(job_raw, job_raw or t('status_running')))
         self.elapsed_stat.configure(text=snapshot.get('elapsed_time', '-'))
@@ -1828,7 +1832,10 @@ class MirrorXApp:
     def _push_smart_progress(self, snap):
         visited = snap.get('visited', 0)
         max_pages = snap.get('max_pages', 0) or 1
-        self.start_button.set_progress(min(100.0, visited / max_pages * 100))
+        # 실제로 끝났다는 신호(_on_smart_done)가 오기 전까지는 100%를 보여주지
+        # 않는다 - visited가 max_pages에 닿아도 뒷정리(저장/미리보기 등)가 아직
+        # 남아있을 수 있어, 100%인데 계속 도는 것처럼 보이는 걸 막는다.
+        self.start_button.set_progress(min(99.0, visited / max_pages * 100))
         elapsed = int(time.time() - getattr(self, '_smart_started_at', time.time()))
         self.elapsed_stat.configure(text=f'{elapsed // 60:02d}:{elapsed % 60:02d}')
         self.links_stat.configure(text=f"{visited}/{snap.get('max_pages', '-')}")
