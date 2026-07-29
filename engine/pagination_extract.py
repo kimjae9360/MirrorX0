@@ -84,7 +84,7 @@ def extract_paginated_list(start_url, fields, api_key, log_fn, provider='anthrop
             browser = p.chromium.launch(channel='chrome', headless=True)
         except Exception:
             browser = p.chromium.launch(headless=True)
-        page = browser.new_page()
+        page = browser.new_page(viewport={'width': 1920, 'height': 1080})
 
         if use_local_cookies:
             import smart_crawl

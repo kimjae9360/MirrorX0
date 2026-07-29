@@ -20,6 +20,7 @@ import smart_crawl
 import pagination_extract
 import click_select
 import clean_organize
+import ollama_setup
 import ai_extract
 import ai_scope
 import data_refine
@@ -403,6 +404,22 @@ class PreferencesDialog(tk.Toplevel):
         tk.Label(tradeoff_box, text=t('caption_ollama_tradeoff'), bg=ACCENT_SOFT, fg=FG,
                  font=(FONTS['ui'], TYPE_CAPTION), wraplength=480, justify='left', padx=12, pady=10).pack(anchor='w')
 
+        # Ollama는 무료지만 별도 설치가 필요해서, 안 되어 있으면 "왜 안 되는지"
+        # 모른 채 막히기 쉽다. 상태를 자동으로 감지해 알려주고, 실제 설치/실행/
+        # 모델 받기는 사용자가 버튼을 눌렀을 때만 시작한다(몰래 받지 않는다).
+        self._ollama_row = tk.Frame(sec7, bg=PANEL)
+        self._ollama_row.pack(fill='x', pady=(0, 12))
+        self._ollama_status_var = tk.StringVar(value=t('ollama_status_checking'))
+        tk.Label(self._ollama_row, textvariable=self._ollama_status_var, bg=PANEL, fg=FG_MUTED,
+                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=380, justify='left').pack(side='left')
+        self._ollama_btn = RoundedButton(self._ollama_row, t('btn_ollama_check'),
+                                         command=self._on_ollama_action,
+                                         variant='neutral', page_bg=PANEL, padx=12, pady=7)
+        self._ollama_btn.pack(side='right')
+        self._ollama_action = None
+        self._ollama_queue = queue.Queue()
+        self.after(80, self._refresh_ollama_status)
+
         self.anthropic_key_var = tk.StringVar(value=settings.get('anthropic_api_key', ''))
         self._row(sec7, '🔑', t('label_api_key_anthropic'), None,
                   lambda p: ttk.Entry(p, textvariable=self.anthropic_key_var, show='*').pack(
@@ -415,6 +432,92 @@ class PreferencesDialog(tk.Toplevel):
         self._row(sec7, '🔑', t('label_api_key_gemini'), t('caption_api_key'),
                   lambda p: ttk.Entry(p, textvariable=self.gemini_key_var, show='*').pack(
                       fill='x', ipady=3), full_width=True)
+
+    def _refresh_ollama_status(self):
+        """Ollama 상태를 확인해 안내 문구와 버튼을 그 상태에 맞게 바꾼다.
+        상태 확인에 서버 응답 대기가 있어 스레드로 돌린다. 결과는 반드시 큐로
+        넘긴다 - 스레드에서 tkinter의 after()를 직접 부르면
+        'main thread is not in main loop'로 죽는다(앱의 다른 곳에서 쓰는
+        msg_queue 패턴과 같은 이유)."""
+        def worker():
+            try:
+                status, models = ollama_setup.get_status()
+            except Exception:
+                status, models = ollama_setup.NOT_INSTALLED, []
+            self._ollama_queue.put(('status', status, models))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_ollama_queue()
+
+    def _poll_ollama_queue(self):
+        """큐에 쌓인 결과를 UI 스레드에서 꺼내 반영한다."""
+        if not self._ollama_row.winfo_exists():
+            return
+        pending = True
+        try:
+            while True:
+                msg = self._ollama_queue.get_nowait()
+                if msg[0] == 'status':
+                    self._apply_ollama_status(msg[1], msg[2])
+                    pending = False
+                elif msg[0] == 'log':
+                    self._ollama_status_var.set(msg[1])
+        except queue.Empty:
+            pass
+        if pending:
+            self.after(150, self._poll_ollama_queue)
+
+    def _apply_ollama_status(self, status, models):
+        if not self._ollama_row.winfo_exists():
+            return
+        mapping = {
+            ollama_setup.NOT_INSTALLED: ('ollama_status_not_installed', 'btn_ollama_install', 'install'),
+            ollama_setup.NOT_RUNNING: ('ollama_status_not_running', 'btn_ollama_start', 'start'),
+            ollama_setup.NO_MODEL: ('ollama_status_no_model', 'btn_ollama_pull', 'pull'),
+            ollama_setup.READY: ('ollama_status_ready', 'btn_ollama_check', 'check'),
+        }
+        status_key, btn_key, action = mapping.get(
+            status, ('ollama_status_not_installed', 'btn_ollama_install', 'install'))
+        text = t(status_key, model=models[0]) if status == ollama_setup.READY and models \
+            else t(status_key)
+        self._ollama_status_var.set(text)
+        self._ollama_btn.set_text(t(btn_key))
+        self._ollama_btn.set_enabled(True)
+        self._ollama_action = action
+
+    def _on_ollama_action(self):
+        """설치/실행/모델 받기 - 어느 것이든 사용자가 이 버튼을 눌렀을 때만 시작한다."""
+        action = self._ollama_action
+        if action == 'check' or action is None:
+            self._ollama_status_var.set(t('ollama_status_checking'))
+            self._refresh_ollama_status()
+            return
+
+        self._ollama_btn.set_enabled(False)
+        self._ollama_status_var.set(t('ollama_status_working'))
+
+        # 스레드에서 UI를 직접 건드리지 않고 큐로만 넘긴다.
+        def log(msg):
+            self._ollama_queue.put(('log', msg))
+
+        def worker():
+            if action == 'install':
+                ollama_setup.install(log_fn=log)
+                ollama_setup.start_server(log_fn=log)
+            elif action == 'start':
+                ollama_setup.start_server(log_fn=log)
+            elif action == 'pull':
+                ollama_setup.pull_model(log_fn=log)
+            # 끝난 뒤 상태를 다시 확인한다. 여기서도 after()를 부르면 안 되므로
+            # 상태 조회까지 이 스레드에서 마치고 결과만 큐로 넘긴다.
+            try:
+                status, models = ollama_setup.get_status()
+            except Exception:
+                status, models = ollama_setup.NOT_INSTALLED, []
+            self._ollama_queue.put(('status', status, models))
+
+        threading.Thread(target=worker, daemon=True).start()
+        self._poll_ollama_queue()
 
     def _toggle_expert(self):
         """전문가 설정을 펼치거나 접는다."""
@@ -961,6 +1064,21 @@ class AIExtractPanel:
         }
 
 
+def normalize_url(raw):
+    """'news.naver.com'처럼 http(s):// 없이 적은 주소를 정상 주소로 만든다.
+    브라우저 주소창에 익숙한 사용자는 스킴을 잘 안 붙이는데, Playwright의
+    page.goto()는 스킴이 없으면 'Cannot navigate to invalid URL'로 실패한다.
+    (실제로 사용자가 news.naver.com을 넣었다가 이 오류를 만났다.)"""
+    url = (raw or '').strip()
+    if not url:
+        return url
+    if '://' in url:
+        return url
+    if url.startswith('//'):
+        return 'https:' + url
+    return 'https://' + url
+
+
 def _fetch_sample_html_from_url(url, timeout=10):
     """필드 제안용 샘플 페이지를 간단한 HTTP GET으로 가져온다 (아직 크롤링 전이므로
     렌더링 없이 원본 HTML만 있으면 충분함). 실패하면 None."""
@@ -1060,7 +1178,7 @@ class PaginationExtractDialog(tk.Toplevel):
         ttk.Entry(outer, textvariable=self.url_var).pack(fill='x', pady=(4, 12), ipady=3)
 
         def get_sample():
-            url = self.url_var.get().strip()
+            url = normalize_url(self.url_var.get())
             return _fetch_sample_html_from_url(url) if url else None
 
         self.ai_panel = AIExtractPanel(
@@ -1087,7 +1205,7 @@ class PaginationExtractDialog(tk.Toplevel):
         RoundedButton(btn_frame, t('btn_cancel'), command=self.destroy, variant='ghost').pack(side='right')
 
     def _run(self):
-        url = self.url_var.get().strip()
+        url = normalize_url(self.url_var.get())
         if not url:
             self.ai_panel.log_fn(t('warn_pagination_need_url'))
             return
@@ -1155,7 +1273,7 @@ class ClickToSelectDialog(tk.Toplevel):
         self.after(150, self._poll)
 
     def _start_pick(self):
-        url = self.url_var.get().strip()
+        url = normalize_url(self.url_var.get())
         if not url:
             self.log_fn(t('warn_pagination_need_url'))
             return
@@ -1577,7 +1695,16 @@ class OptionsDialog(tk.Toplevel):
                 row=i // 2, column=i % 2, sticky='w', padx=(0, 20), pady=4)
 
         ttk.Label(parent, text=t('label_custom_rules'), style='Muted.TLabel').pack(anchor='w', pady=(14, 2))
-        ttk.Entry(parent, textvariable=app.custom_filters_var).pack(fill='x', ipady=3)
+        # 규칙 문법(+*/foo/* -*/bar/*)을 모르는 사람도 자연어로 목표만 말하면
+        # AI가 규칙을 만들어 이 칸에 넣어준다. 입력칸 바로 옆에 둬야 "이 칸을
+        # 채우는 도우미"라는 게 드러난다.
+        rules_row = ttk.Frame(parent, style='Panel.TFrame')
+        rules_row.pack(fill='x')
+        ttk.Entry(rules_row, textvariable=app.custom_filters_var).pack(
+            side='left', fill='x', expand=True, ipady=3)
+        RoundedButton(rules_row, f"✨ {t('btn_ai_scope_rules')}",
+                      command=lambda: app._open_scope_rules_dialog(self),
+                      variant='ghost', page_bg=PANEL, padx=12, pady=7).pack(side='left', padx=(8, 0))
         ttk.Label(parent, text=t('caption_custom_rules'), style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
@@ -2401,7 +2528,7 @@ class MirrorXApp:
     def _get_urls(self):
         # 주소 입력은 한 줄이지만, 공백이나 쉼표로 여러 개를 넣는 경우도 받아준다.
         raw = self.urls_var.get().replace(',', ' ')
-        return [u.strip() for u in raw.split() if u.strip()]
+        return [normalize_url(u) for u in raw.split() if u.strip()]
 
     def _set_urls(self, urls):
         self.urls_var.set(' '.join(urls))
@@ -2614,6 +2741,22 @@ class MirrorXApp:
         self.projects = [p for p in self.projects if p is not record]
         save_projects(self.projects)
         self._refresh_projects_panel()
+
+    def _open_scope_rules_dialog(self, parent=None):
+        """'추가 규칙' 칸을 자연어로 채워주는 AI 도우미를 연다.
+        parent를 옵션 창으로 주면 그 창 위에 뜬다(옵션 창이 grab_set으로
+        입력을 잡고 있어서, 루트를 부모로 주면 새 창을 조작할 수 없다)."""
+        urls = self._get_urls()
+        if not urls:
+            self._log(t('warn_scope_need_url'))
+            return
+        AIScopeRulesDialog(parent or self.root, urls, self.settings, log_fn=self._log,
+                            on_apply=self._apply_scope_rules)
+
+    def _apply_scope_rules(self, rules_text):
+        self.custom_filters_var.set(rules_text)
+        self._refresh_option_summaries()
+        self._log(t('log_scope_rules_applied'))
 
     def _open_data_tools_dialog(self):
         out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())

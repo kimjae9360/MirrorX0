@@ -406,6 +406,16 @@ STRINGS = {
             '(e.g. "ollama pull llama3.2"). Anthropic/OpenAI/Gemini (paid): faster and no local '
             'setup, but needs your own API key and costs money per use.'
         ),
+        'ollama_status_checking': 'Checking Ollama...',
+        'ollama_status_not_installed': "Ollama isn't installed yet. Install it to use the free option.",
+        'ollama_status_not_running': "Ollama is installed but not running.",
+        'ollama_status_no_model': 'Ollama is running, but no model is downloaded yet.',
+        'ollama_status_ready': 'Ollama is ready ({model}).',
+        'ollama_status_working': 'Working... this can take a few minutes.',
+        'btn_ollama_install': 'Install Ollama',
+        'btn_ollama_start': 'Start Ollama',
+        'btn_ollama_pull': 'Get Model',
+        'btn_ollama_check': 'Check Again',
         'label_api_key_anthropic': 'Anthropic API Key',
         'label_api_key_openai': 'OpenAI API Key',
         'label_api_key_gemini': 'Google Gemini API Key',
@@ -942,6 +952,16 @@ STRINGS = {
             '필요합니다. Anthropic/OpenAI/Gemini (유료): 별도 설치 없이 훨씬 빠르지만, 본인 API '
             '키가 필요하고 사용할 때마다 비용이 듭니다.'
         ),
+        'ollama_status_checking': 'Ollama 상태를 확인하는 중…',
+        'ollama_status_not_installed': 'Ollama가 아직 설치되지 않았어요. 무료로 쓰려면 설치가 필요해요.',
+        'ollama_status_not_running': 'Ollama가 설치는 됐는데 실행 중이 아니에요.',
+        'ollama_status_no_model': 'Ollama는 실행 중인데, 받아둔 모델이 없어요.',
+        'ollama_status_ready': 'Ollama 사용 준비 완료 ({model}).',
+        'ollama_status_working': '진행 중… 몇 분 걸릴 수 있어요.',
+        'btn_ollama_install': 'Ollama 설치하기',
+        'btn_ollama_start': 'Ollama 실행하기',
+        'btn_ollama_pull': '모델 받기',
+        'btn_ollama_check': '다시 확인',
         'label_api_key_anthropic': 'Anthropic API 키',
         'label_api_key_openai': 'OpenAI API 키',
         'label_api_key_gemini': 'Google Gemini API 키',

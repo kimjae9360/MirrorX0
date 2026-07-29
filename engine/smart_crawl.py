@@ -482,7 +482,10 @@ def run_smart_crawl(job, log_fn, progress_fn=None, should_stop=None):
                 log_fn('[스마트 크롤링] 시스템 Chrome을 찾을 수 없어 번들된 Chromium을 시도합니다.')
                 browser = p.chromium.launch(headless=True)
 
-            page = browser.new_page()
+            # 뷰포트를 지정하지 않으면 1280x720으로 고정된다 - 요즘 사이트는 그
+            # 폭에서 태블릿용 레이아웃을 내주는 경우가 있어, 데스크톱 화면 그대로
+            # 받으려면 넉넉한 폭으로 잡아주는 편이 낫다.
+            page = browser.new_page(viewport={'width': 1920, 'height': 1080})
 
             # 브라우저가 받아오는 모든 것(CSS/JS/이미지/폰트)을 저장한다.
             # 자바스크립트가 나중에 요청하는 것까지 잡히기 때문에, 이걸 해야

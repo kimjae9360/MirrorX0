@@ -99,11 +99,16 @@ def pick_element_and_collect(url, use_local_cookies=False, timeout_seconds=300):
         event.set()
 
     with sync_playwright() as p:
+        # --start-maximized로 창을 크게 띄우고, no_viewport=True로 '고정 뷰포트'를
+        # 끈다. Playwright는 기본적으로 창 크기와 무관하게 1280x720 뷰포트를
+        # 강제하는데, 그러면 창을 아무리 키워도 페이지가 그 크기로만 그려져
+        # 잘려 보인다(사용자가 직접 마우스로 항목을 골라야 하는 화면이라 치명적).
+        launch_args = ['--start-maximized']
         try:
-            browser = p.chromium.launch(channel='chrome', headless=False)
+            browser = p.chromium.launch(channel='chrome', headless=False, args=launch_args)
         except Exception:
-            browser = p.chromium.launch(headless=False)
-        page = browser.new_page()
+            browser = p.chromium.launch(headless=False, args=launch_args)
+        page = browser.new_page(no_viewport=True)
         page.expose_function('mirrorx_pick', on_pick)
 
         if use_local_cookies:
