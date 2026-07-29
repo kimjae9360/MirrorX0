@@ -1489,13 +1489,16 @@ class MirrorXApp:
         PaginationExtractDialog(self.root, self.settings, log_fn=self._log,
                                  on_run=self._start_pagination_thread)
 
-    def _start_pagination_thread(self, url, config, max_pages, use_cookies):
+    def _start_pagination_thread(self, url, config, max_pages, use_cookies, save_dir):
         ai_config = get_active_ai_config(self.settings)
         if not ai_ready(ai_config):
             self._log(t('warn_need_api_key'))
             return
         self._log(t('log_pagination_started'))
-        out_dir = os.path.join(CONFIG_DIR, 'pagination_extracts', datetime.now().strftime('%Y%m%d_%H%M%S'))
+        # 예전엔 %APPDATA%\MirrorX 안에 조용히 저장돼서 사용자가 결과를 찾을 수
+        # 없었다 - 이제 사용자가 고른 폴더 아래, 실행마다 겹치지 않는 새
+        # 하위 폴더에 저장한다.
+        out_dir = os.path.join(save_dir, 'pagination_extract_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 
         def worker():
             try:
@@ -1522,13 +1525,13 @@ class MirrorXApp:
         ClickToSelectDialog(self.root, self.settings, log_fn=self._log,
                              on_extract=self._start_click_select_thread)
 
-    def _start_click_select_thread(self, items_html, config):
+    def _start_click_select_thread(self, items_html, config, save_dir):
         ai_config = get_active_ai_config(self.settings)
         if not ai_ready(ai_config):
             self._log(t('warn_need_api_key'))
             return
         self._log(t('log_click_select_started'))
-        out_dir = os.path.join(CONFIG_DIR, 'click_select_extracts', datetime.now().strftime('%Y%m%d_%H%M%S'))
+        out_dir = os.path.join(save_dir, 'click_select_extract_' + datetime.now().strftime('%Y%m%d_%H%M%S'))
 
         def worker():
             try:

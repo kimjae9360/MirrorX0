@@ -926,13 +926,19 @@ class AIExtractPanel:
         }
 
 
-def _build_folder_picker(parent, initial_dir):
-    """'대상 폴더' 행 하나(라벨 + 경로 입력 + 찾아보기 버튼)를 만들어 준다.
-    AI 추출/정리된 사본 만들기 둘 다 '이미 받아둔 폴더'를 대상으로 동작하는데,
-    지금까지는 그 폴더를 사용자가 볼 수도 바꿀 수도 없어서(다운로드 화면의
-    설정값을 몰래 그대로 썼다) '어디서 가져오는 건지' 알 길이 없었다.
-    이제는 다이얼로그를 열 때마다 이 폴더가 항상 눈에 보이고 직접 고를 수 있다."""
-    ttk.Label(parent, text=t('label_target_folder'), style='Muted.TLabel').pack(anchor='w', pady=(0, 2))
+def _build_folder_picker(parent, initial_dir, label_key='label_target_folder', caption_key='caption_target_folder'):
+    """폴더 선택 행 하나(라벨 + 경로 입력 + 찾아보기 버튼)를 만들어 준다.
+    두 가지 맥락에서 재사용한다:
+    - '대상 폴더'(label_target_folder) - AI 추출/정리된 사본 만들기처럼 '이미
+      받아둔 폴더'가 있어야 하는 도구. 예전엔 이 폴더를 사용자가 볼 수도 바꿀
+      수도 없어서(다운로드 화면의 설정값을 몰래 그대로 썼다) 어디서 가져오는
+      건지 알 길이 없었다.
+    - '저장 위치'(label_save_location) - 페이지네이션 추출/클릭해서 고르기처럼
+      URL에서 바로 뽑아내는 도구. 이전엔 결과가 앱 내부 폴더(%APPDATA%)에
+      조용히 저장돼서 사용자가 찾을 수 없었다.
+    두 경우 다 지금은 다이얼로그를 열 때마다 폴더가 항상 눈에 보이고 직접
+    고를 수 있다."""
+    ttk.Label(parent, text=t(label_key), style='Muted.TLabel').pack(anchor='w', pady=(0, 2))
     row = ttk.Frame(parent)
     row.pack(fill='x', pady=(4, 2))
     folder_var = tk.StringVar(value=initial_dir if os.path.isdir(initial_dir) else '')
@@ -948,7 +954,7 @@ def _build_folder_picker(parent, initial_dir):
 
     RoundedButton(row, t('btn_browse'), command=browse, variant='ghost', padx=12, pady=6).pack(
         side='left', padx=(8, 0))
-    ttk.Label(parent, text=t('caption_target_folder'), style='Caption.TLabel').pack(anchor='w', pady=(0, 10))
+    ttk.Label(parent, text=t(caption_key), style='Caption.TLabel').pack(anchor='w', pady=(0, 10))
     return folder_var
 
 
@@ -1121,6 +1127,12 @@ class PaginationExtractDialog(tk.Toplevel):
         ttk.Checkbutton(outer, text=t('label_use_local_cookies'), variable=self.use_cookies_var).pack(
             anchor='w', pady=(8, 12))
 
+        # 결과가 어디에 저장되는지 안 보여서(내부 앱 폴더에 조용히 저장됐다)
+        # "어디에 다운받는 거냐"는 질문이 나왔다 - 이제 직접 고르게 한다.
+        self.save_dir_var = _build_folder_picker(outer, settings.get('base_path', ''),
+                                                  label_key='label_save_location',
+                                                  caption_key='caption_save_location')
+
         btn_frame = ttk.Frame(outer)
         btn_frame.pack(fill='x', pady=(16, 0))
         RoundedButton(btn_frame, t('btn_run_extraction'), command=self._run, variant='accent').pack(
@@ -1136,12 +1148,17 @@ class PaginationExtractDialog(tk.Toplevel):
         if not config.get('fields'):
             self.ai_panel.log_fn(t('warn_need_fields'))
             return
+        save_dir = self.save_dir_var.get().strip()
+        if not os.path.isdir(save_dir):
+            messagebox.showwarning(t('dialog_pagination_title'), t('warn_choose_folder'), parent=self)
+            self.ai_panel.log_fn(t('warn_choose_folder'))
+            return
         try:
             max_pages = max(1, min(200, int(self.max_pages_var.get())))
         except (TypeError, ValueError):
             max_pages = 20
         self.destroy()
-        self.on_run(url, config, max_pages, self.use_cookies_var.get())
+        self.on_run(url, config, max_pages, self.use_cookies_var.get(), save_dir)
 
 
 class ClickToSelectDialog(tk.Toplevel):
@@ -1187,6 +1204,12 @@ class ClickToSelectDialog(tk.Toplevel):
         self.status_var = tk.StringVar(value='')
         ttk.Label(outer, textvariable=self.status_var, style='Caption.TLabel', wraplength=460,
                   justify='left').pack(anchor='w', pady=(6, 10))
+
+        # 결과가 어디에 저장되는지 안 보여서(내부 앱 폴더에 조용히 저장됐다)
+        # "어디에 다운받는 거냐"는 질문이 나왔다 - 이제 직접 고르게 한다.
+        self.save_dir_var = _build_folder_picker(outer, settings.get('base_path', ''),
+                                                  label_key='label_save_location',
+                                                  caption_key='caption_save_location')
 
         # 항목을 고르기 전에는 필드 정의 영역/실행 버튼을 숨겨둔다 - 고른 뒤에야 채워 넣는다.
         self.fields_area = ttk.Frame(outer, style='Panel.TFrame')
@@ -1253,9 +1276,14 @@ class ClickToSelectDialog(tk.Toplevel):
         if not config.get('fields'):
             self.log_fn(t('warn_need_fields'))
             return
+        save_dir = self.save_dir_var.get().strip()
+        if not os.path.isdir(save_dir):
+            messagebox.showwarning(t('dialog_click_select_title'), t('warn_choose_folder'), parent=self)
+            self.log_fn(t('warn_choose_folder'))
+            return
         items_html = self._picked['items_html']
         self.destroy()
-        self.on_extract(items_html, config)
+        self.on_extract(items_html, config, save_dir)
 
 
 class DataToolsDialog(tk.Toplevel):
@@ -1341,6 +1369,10 @@ class AIRefineDialog(tk.Toplevel):
         outer.configure(padding=20)
         ttk.Label(outer, text=t('dialog_refine_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 4))
         ttk.Label(outer, text=t('caption_refine_intro', n=len(records)), style='Sub.TLabel',
+                  wraplength=500, justify='left').pack(anchor='w', pady=(0, 4))
+        # 크롤링 화면에서는 로그 패널이 숨겨져 있어 "어디에 저장됐는지" 확인할
+        # 길이 이 다이얼로그뿐이다 - 그래서 경로를 여기 직접 보여준다.
+        ttk.Label(outer, text=t('caption_refine_saved_at', path=out_dir), style='Caption.TLabel',
                   wraplength=500, justify='left').pack(anchor='w', pady=(0, 12))
 
         ttk.Label(outer, text=t('label_refine_instruction'), style='MutedRoot.TLabel').pack(anchor='w')

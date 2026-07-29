@@ -464,7 +464,9 @@ STRINGS = {
         'dialog_ai_extract_title': 'AI Data Extraction',
         'label_target_folder': 'Target folder',
         'caption_target_folder': 'Pick a folder you already downloaded with "Download Site".',
-        'warn_choose_folder': '[Warning] Please choose a target folder first.',
+        'label_save_location': 'Save location',
+        'caption_save_location': 'Where the extracted table will be saved.',
+        'warn_choose_folder': '[Warning] Please choose a folder first.',
         'dialog_clean_organize_title': 'Make a Tidy Copy',
         'caption_clean_organize_intro': (
             'Creates a tidy copy of a downloaded site, sorted into css/js/images/fonts folders. '
@@ -541,6 +543,7 @@ STRINGS = {
             "You have {n} row(s). Describe what to change, in your own words — "
             "no formulas needed."
         ),
+        'caption_refine_saved_at': 'Saved to: {path}',
         'label_refine_instruction': 'What do you want to change?',
         'caption_refine_examples': (
             'Examples: "drop column B and put column C there instead" · '
@@ -1029,7 +1032,9 @@ STRINGS = {
         'dialog_ai_extract_title': 'AI 데이터 추출',
         'label_target_folder': '대상 폴더',
         'caption_target_folder': '먼저 "사이트 다운로드"로 받아둔 폴더를 골라주세요.',
-        'warn_choose_folder': '[경고] 먼저 대상 폴더를 선택해주세요.',
+        'label_save_location': '저장 위치',
+        'caption_save_location': '뽑아낸 표가 저장될 위치입니다.',
+        'warn_choose_folder': '[경고] 먼저 폴더를 선택해주세요.',
         'dialog_clean_organize_title': '정리된 사본 만들기',
         'caption_clean_organize_intro': (
             '받아둔 사이트를 css/js/images/fonts 폴더로 정돈한 사본을 새로 만듭니다. '
@@ -1104,6 +1109,7 @@ STRINGS = {
         'log_ai_extract_offer_refine': '{n}개 행을 뽑았어요. 이 표를 자연어로 다듬어볼까요?',
         'dialog_refine_title': '표 다듬기',
         'caption_refine_intro': '{n}개 행이 있어요. 수식 몰라도 돼요 - 원하는 걸 그냥 말로 설명해주세요.',
+        'caption_refine_saved_at': '저장 위치: {path}',
         'label_refine_instruction': '무엇을 바꾸고 싶으신가요?',
         'caption_refine_examples': (
             '예: "B열은 빼고 C열을 B열에 넣어줘" · "가격 결측치는 최빈값으로 채워줘" · '
