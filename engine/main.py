@@ -1769,49 +1769,109 @@ class OptionsDialog(tk.Toplevel):
                 row.pack_forget()
 
     # ---------------- 스마트 크롤링 옵션 ----------------
+    # 얼마나 받을지 프리셋 - (키, 제목 문자열키, 설명 문자열키, 최대페이지, 깊이).
+    # 대부분의 사람은 '페이지 수'와 '깊이'를 따로 정하고 싶은 게 아니라
+    # "이 페이지만" 또는 "사이트 전체"처럼 말하고 싶어 한다.
+    SMART_PRESETS = (
+        ('page', 'preset_page_title', 'preset_page_desc', '1', '1'),
+        ('light', 'preset_light_title', 'preset_light_desc', '50', '2'),
+        ('full', 'preset_full_title', 'preset_full_desc', '500', '5'),
+    )
+
+    # 화면에 보일 이름 <-> Playwright 내부 값. 'networkidle' 같은 raw 값을
+    # 그대로 보여주면 무슨 뜻인지 알 수 없어서 사람 말로 바꿔 보여준다.
+    WAIT_UNTIL_OPTIONS = (
+        ('networkidle', 'wait_label_networkidle'),
+        ('load', 'wait_label_load'),
+        ('domcontentloaded', 'wait_label_domcontentloaded'),
+    )
+
     def _build_smart(self, parent):
         app = self.app
 
+        # --- 1단계: 얼마나 받을지 (대부분 여기서 끝난다) ---
+        ttk.Label(parent, text=t('label_smart_preset'), style='RowTitle.TLabel').pack(anchor='w')
+        ttk.Label(parent, text=t('caption_smart_preset'), style='Caption.TLabel',
+                  wraplength=580).pack(anchor='w', pady=(2, 8))
+
+        current = next((key for key, _tk, _dk, pages, depth in self.SMART_PRESETS
+                        if app.max_pages_var.get() == pages and app.follow_depth_var.get() == depth),
+                       'custom')
+        self._preset_var = tk.StringVar(value=current)
+
+        for key, title_key, desc_key, pages, depth in self.SMART_PRESETS:
+            row = ttk.Frame(parent, style='Panel.TFrame')
+            row.pack(fill='x', pady=2)
+            ttk.Radiobutton(row, text=t(title_key), value=key, variable=self._preset_var,
+                            command=lambda p=pages, d=depth: _apply_preset(p, d)).pack(anchor='w')
+            ttk.Label(row, text=t(desc_key), style='Caption.TLabel',
+                      wraplength=560).pack(anchor='w', padx=(22, 0))
+
+        ttk.Radiobutton(parent, text=t('preset_custom_title'), value='custom',
+                        variable=self._preset_var,
+                        command=lambda: _sync_advanced()).pack(anchor='w', pady=(2, 0))
+
+        def _apply_preset(pages, depth):
+            app.max_pages_var.set(pages)
+            app.follow_depth_var.set(depth)
+            _sync_advanced()
+
+        # --- 2단계: 직접 설정 (고른 사람에게만 보인다) ---
+        advanced = ttk.Frame(parent, style='Panel.TFrame')
+
+        def _sync_advanced():
+            if self._preset_var.get() == 'custom':
+                advanced.pack(fill='x', pady=(10, 0))
+            else:
+                advanced.pack_forget()
+
         def spin_row(label_key, caption_key, variable, from_, to):
-            ttk.Label(parent, text=t(label_key), style='RowTitle.TLabel').pack(anchor='w', pady=(10, 0))
-            ttk.Spinbox(parent, from_=from_, to=to, textvariable=variable, width=10).pack(anchor='w', pady=(4, 0))
-            ttk.Label(parent, text=t(caption_key), style='Caption.TLabel',
+            ttk.Label(advanced, text=t(label_key), style='RowTitle.TLabel').pack(anchor='w', pady=(10, 0))
+            ttk.Spinbox(advanced, from_=from_, to=to, textvariable=variable, width=10).pack(
+                anchor='w', pady=(4, 0))
+            ttk.Label(advanced, text=t(caption_key), style='Caption.TLabel',
                       wraplength=580).pack(anchor='w', pady=(2, 0))
 
         spin_row('label_max_pages', 'caption_max_pages', app.max_pages_var, 1, 5000)
         spin_row('label_follow_depth', 'caption_follow_depth', app.follow_depth_var, 1, 20)
 
-        ttk.Label(parent, text=t('label_wait_until'), style='RowTitle.TLabel').pack(anchor='w', pady=(14, 0))
-        ttk.Combobox(parent, textvariable=app.wait_until_var, state='readonly',
-                     values=['networkidle', 'load', 'domcontentloaded']).pack(fill='x', pady=(4, 0), ipady=2)
-        # 고른 값에 맞는 설명으로 매번 바뀐다 - 예전엔 무엇을 골라도 설명이
-        # 'networkidle' 얘기만 해서, 다른 값을 골랐을 때 뭘 뜻하는지 알 수 없었다.
+        ttk.Label(advanced, text=t('label_wait_until'), style='RowTitle.TLabel').pack(anchor='w', pady=(14, 0))
+        # 표시용 이름으로 고르고, 실제 값(app.wait_until_var)은 뒤에서 맞춰준다.
+        wait_labels = [t(lk) for _v, lk in self.WAIT_UNTIL_OPTIONS]
+        wait_display_var = tk.StringVar(value=next(
+            (t(lk) for v, lk in self.WAIT_UNTIL_OPTIONS if v == app.wait_until_var.get()), wait_labels[0]))
+        ttk.Combobox(advanced, textvariable=wait_display_var, state='readonly',
+                     values=wait_labels).pack(fill='x', pady=(4, 0), ipady=2)
         wait_caption_var = tk.StringVar()
 
-        def _sync_wait_caption(*_a):
-            wait_caption_var.set(t(f"caption_wait_until_{app.wait_until_var.get()}"))
-        app.wait_until_var.trace_add('write', _sync_wait_caption)
-        _sync_wait_caption()
-        ttk.Label(parent, textvariable=wait_caption_var, style='Caption.TLabel',
+        def _sync_wait(*_a):
+            value = next((v for v, lk in self.WAIT_UNTIL_OPTIONS if t(lk) == wait_display_var.get()),
+                         'networkidle')
+            app.wait_until_var.set(value)
+            wait_caption_var.set(t(f'caption_wait_until_{value}'))
+        wait_display_var.trace_add('write', _sync_wait)
+        _sync_wait()
+        ttk.Label(advanced, textvariable=wait_caption_var, style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
         # 어디까지 따라갈지(도메인/폴더 범위) - 사이트 미러링의 '수집 범위' 다이얼로그와
-        # 같은 변수를 쓴다. 예전엔 이 값이 스마트 모드에서는 손댈 곳이 없어서
-        # 미러링 쪽 화면에 가야만 바꿀 수 있었다.
-        ttk.Label(parent, text=t('label_domain_scope'), style='RowTitle.TLabel').pack(anchor='w', pady=(16, 0))
-        ttk.Combobox(parent, textvariable=app.domain_scope_var, state='readonly',
+        # 같은 변수를 쓴다.
+        ttk.Label(advanced, text=t('label_domain_scope'), style='RowTitle.TLabel').pack(anchor='w', pady=(16, 0))
+        ttk.Combobox(advanced, textvariable=app.domain_scope_var, state='readonly',
                      values=[label for _, label in app.domain_scope_options],
                      width=combo_width([l for _, l in app.domain_scope_options])).pack(
             fill='x', pady=(4, 0), ipady=2)
-        ttk.Label(parent, text=t('caption_domain_scope'), style='Caption.TLabel',
+        ttk.Label(advanced, text=t('caption_domain_scope'), style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
-        ttk.Checkbutton(parent, text=t('label_same_folder'),
+        ttk.Checkbutton(advanced, text=t('label_same_folder'),
                         variable=app.same_folder_var).pack(anchor='w', pady=(14, 0))
-        ttk.Label(parent, text=t('caption_same_folder'), style='Caption.TLabel',
+        ttk.Label(advanced, text=t('caption_same_folder'), style='Caption.TLabel',
                   wraplength=580).pack(anchor='w', pady=(2, 0))
 
-        # 요청 사이 텀 - HTTrack 쪽 안전장치에는 있는데 스마트 크롤링엔 없던 것.
+        _sync_advanced()
+
+        # 요청 사이 텀 - 차단당하지 않으려면 중요해서 프리셋과 무관하게 항상 보여준다.
         ttk.Checkbutton(parent, text=t('label_smart_pause_enable'),
                         variable=app.smart_pause_enable_var,
                         command=lambda: _sync_pause_row()).pack(anchor='w', pady=(16, 0))
@@ -2095,7 +2155,10 @@ class MirrorXApp:
 
         # 스마트 크롤링 옵션 (Playwright로 실제 브라우저를 띄워 받는 모드)
         self.max_pages_var = tk.StringVar(value='50')
-        self.follow_depth_var = tk.StringVar(value='1')
+        # 깊이 1은 '링크를 아예 안 따라감'이라, 최대 50페이지로 둬도 실제로는
+        # 시작 주소 한 장만 받혀서 "1/50"이 나왔다(사용자가 실제로 겪음).
+        # 권장 프리셋('이 사이트 조금' = 50페이지·2단계)과 기본값을 맞춘다.
+        self.follow_depth_var = tk.StringVar(value='2')
         self.wait_until_var = tk.StringVar(value='networkidle')
         # 요청 사이 텀 - HTTrack 쪽 안전장치에는 있는데 스마트 크롤링에는 없던 것.
         # 기본은 꺼둔다(끄면 예전과 동일하게 동작 - 기존 사용자 흐름을 안 건드림).
