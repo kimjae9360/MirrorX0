@@ -1937,7 +1937,8 @@ class MirrorXApp:
     def __init__(self, root):
         self.root = root
         self.settings = load_settings()
-        set_language(self.settings.get('language', 'en'))
+        self._current_lang = self.settings.get('language', 'en')
+        set_language(self._current_lang)
         self.current_process = None
         self.msg_queue = queue.Queue()
         self.progress_state = {}
@@ -3033,7 +3034,51 @@ class MirrorXApp:
     def _on_prefs_saved(self):
         # 환경설정에서 바꾼 쿠키 설정이 스마트 옵션 창의 토글에도 반영되게 맞춰준다.
         self.use_local_cookies_var.set(bool(self.settings.get('use_local_cookies', False)))
+
+        # 언어를 바꿨으면 실제로 화면 글자까지 바꿔준다. 예전에는 설정 파일에만
+        # 저장되고 set_language()를 다시 부르지 않아서, 언어를 바꿔도 아무 일도
+        # 일어나지 않았다(재시작 안내조차 없었다).
+        new_lang = self.settings.get('language', 'en')
+        if new_lang != getattr(self, '_current_lang', None):
+            set_language(new_lang)
+            self._current_lang = new_lang
+            self._rebuild_ui_for_language()
+
         self._log(t('log_prefs_saved'))
+
+    def _rebuild_ui_for_language(self):
+        """화면을 통째로 다시 그린다. 위젯의 글자는 만들 때 t()로 한 번 박히기
+        때문에, 언어가 바뀌면 다시 만드는 것 말고는 반영할 방법이 없다.
+        사용자가 입력해둔 값(주소·이름·저장위치)과 지금 보고 있던 화면은
+        그대로 유지한다 - 언어만 바꿨는데 하던 일이 날아가면 안 되므로."""
+        if getattr(self, '_busy', False):
+            # 작업 중에 화면을 뜯어내면 진행 상황 위젯이 사라져 위험하다.
+            self._log(t('log_prefs_saved'))
+            return
+        keep = {
+            'urls': self.urls_var.get(),
+            'project': self.project_var.get(),
+            'base_path': self.base_path_var.get(),
+            'mode': self.mode_var.get(),
+            'intent': self.intent_var.get(),
+        }
+        log_text = self.log_text.get('1.0', 'end')
+
+        self._root_frame.destroy()
+        self._build_ui()
+
+        self.urls_var.set(keep['urls'])
+        self.project_var.set(keep['project'])
+        self.base_path_var.set(keep['base_path'])
+        self.mode_var.set(keep['mode'])
+        self._on_mode_changed()
+        self.intent_var.set(keep['intent'])
+        self._on_intent_changed()
+        if log_text.strip():
+            self.log_text.configure(state='normal')
+            self.log_text.insert('end', log_text.strip() + '\n')
+            self.log_text.configure(state='disabled')
+            self.log_text.see('end')
 
     def _browse_folder(self):
         selected = filedialog.askdirectory(
