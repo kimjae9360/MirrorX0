@@ -388,11 +388,11 @@ class MirrorXApp:
         # 높이도 사용자마다 다르다. 창을 키우는 것만으로는 1080p 같은 환경에서
         # 아래가 잘리므로(실제로 '완료 후 동작' 행이 잘렸다), 남으면 그냥 보이고
         # 모자라면 스크롤되게 한다.
-        # make_scrollable은 부모에 pack으로 붙으므로, grid를 쓰는 형제(로그 열)와
-        # 충돌하지 않도록 전용 홀더 안에 넣는다.
-        settings_holder = tk.Frame(bottom, bg=BG)
-        settings_holder.grid(row=0, column=0, sticky='nsew', padx=(0, 9))
-        settings_col = make_scrollable(settings_holder, bg=BG)
+        # 스크롤 영역으로 감싸봤더니 카드 폭이 161px로 쪼그라드는 회귀가 생겼다
+        # (높이 문제를 고치려다 폭을 망가뜨리는 건 손해라 되돌림). 세로가 모자라면
+        # 창을 키우거나 최대화하면 되고, 아래 _apply_min_size가 최소 크기를 잡아준다.
+        settings_col = tk.Frame(bottom, bg=BG)
+        settings_col.grid(row=0, column=0, sticky='nsew', padx=(0, 9))
         log_col = tk.Frame(bottom, bg=BG)
         log_col.grid(row=0, column=1, sticky='nsew', padx=(9, 0))
         self._build_settings_column(settings_col)
@@ -499,7 +499,7 @@ class MirrorXApp:
     # 데이터 추출 도구 - (키, 아이콘, 제목 문자열키, 설명 문자열키).
     # 메인 화면의 '데이터로 뽑기'와 데이터 도구 창이 같은 목록을 쓰도록 한곳에 둔다.
     DATA_CARD_WIDTH = 360
-    DATA_CARD_HEIGHT = 190
+    DATA_CARD_HEIGHT = 176
     SKETCH_HEIGHT = 52
 
     _DATA_TOOLS = (
@@ -635,7 +635,7 @@ class MirrorXApp:
         self.mode_var = tk.StringVar(value='mirror')
         self._mode_caption_var = tk.StringVar(value=t('caption_mode_mirror'))
 
-        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=140)
+        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=200)
         self.start_button.pack()
         # 못 누르는 버튼도 '왜 못 누르는지'는 말해줘야 한다. 위젯이 비활성일 때
         # command를 막으므로, 클릭 자체는 따로 받아서 이유를 띄운다.
@@ -663,7 +663,7 @@ class MirrorXApp:
             holder.grid_propagate(False)
             holder.configure(height=self.DATA_CARD_HEIGHT)
 
-            row = RoundedCard(holder, radius=14, padding=14)
+            row = RoundedCard(holder, radius=20, padding=16, shadow=True)
             row.place(x=0, y=0, width=self.DATA_CARD_WIDTH, height=self.DATA_CARD_HEIGHT)
             head_row = ttk.Frame(row.body, style='Panel.TFrame')
             head_row.pack(fill='x')
@@ -698,7 +698,7 @@ class MirrorXApp:
         높이가 아니라 폭에만 반응시킨다 - 높이에 반응시키면 (버튼이 커짐 → 창이
         더 필요해짐 → 다시 계산) 식으로 서로를 밀어내며 흔들릴 수 있기 때문."""
         # 캔버스에는 글로우 여백도 포함되므로 실제 원보다 조금 크게 잡는다.
-        self.start_button.set_size(max(120, min(140, event.width * 0.18)))
+        self.start_button.set_size(max(170, min(200, event.width * 0.24)))
 
     def _sync_stat_captions(self):
         """모드에 따라 지표 이름을 바꾼다 (미러링은 '스캔한 링크', 스마트는 '방문한 페이지')."""
@@ -731,7 +731,7 @@ class MirrorXApp:
         """좌측 열: 지금 설정된 값들(주소/프로젝트/방식 + 옵션 요약 행).
         expand=False로 두어 카드가 '내용에 맞는 높이'를 갖게 한다 - expand=True면
         남는 공간에 맞춰 내용을 우겨넣어 아래쪽 행이 잘리기 때문."""
-        card = RoundedCard(parent, radius=18, padding=14, inset=10)
+        card = RoundedCard(parent, radius=20, padding=14, inset=10, shadow=True)
         card.pack(fill='x')
         self._settings_card = card
         body = card.body
@@ -881,7 +881,7 @@ class MirrorXApp:
             self._right_stats.grid_remove()
             # 각 도구가 자기 창에서 필요한 값을 직접 받으므로, 아래 프로젝트
             # 설정 카드는 크롤링에서 쓸 일이 없다.
-            self._settings_card.master.pack_forget()
+            self._settings_card.pack_forget()
             self._project_title_var.set(t('panel_project_data'))
         else:
             self._data_zone.pack_forget()
@@ -892,14 +892,14 @@ class MirrorXApp:
                 self._action_col.grid()
             self._left_stats.grid()
             self._right_stats.grid()
-            self._settings_card.master.pack(fill='x')
+            self._settings_card.pack(fill='x')
             self._project_title_var.set(t('panel_project'))
         self._sync_nav_selection()
         self._sync_start_button()
 
     def _option_row(self, parent, group, icon, title, value_var):
         # inset을 작게 줘서 행 높이를 촘촘하게 유지한다(네 행이 스크롤 없이 다 들어가야 함).
-        card = RoundedCard(parent, page_bg=PANEL, card_bg=PANEL_LIGHT, radius=11, inset=4,
+        card = RoundedCard(parent, page_bg=PANEL, card_bg=PANEL_LIGHT, radius=14, inset=4,
                            padding=(11, 6), body_style='PanelLight.TFrame')
         inner = card.body
         tk.Label(inner, text=icon, bg=PANEL_LIGHT, fg=FG_MUTED,
@@ -929,7 +929,7 @@ class MirrorXApp:
 
     def _build_log_column(self, parent):
         """우측 열: 실시간 로그."""
-        card = RoundedCard(parent, radius=18, padding=16, expand=True)
+        card = RoundedCard(parent, radius=20, padding=16, expand=True, shadow=True)
         card.pack(fill='both', expand=True)
         body = card.body
 
@@ -1198,7 +1198,7 @@ class MirrorXApp:
         self._log(t('log_job_deleted'))
 
     def _panel(self, parent, title, expand=False):
-        card = RoundedCard(parent, radius=14, padding=14, expand=expand)
+        card = RoundedCard(parent, radius=18, padding=14, expand=expand, shadow=True)
         card.pack(fill='both' if expand else 'x', expand=expand, pady=(0, 12))
         ttk.Label(card.body, text=title, style='Header.TLabel').pack(anchor='w', pady=(0, 8))
         card.body.card = card  # 카드 바깥 프레임 참조(셔틀다운 배너 위치 지정 등에 필요)

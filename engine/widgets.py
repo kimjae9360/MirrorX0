@@ -256,7 +256,7 @@ class CircularStartButton(tk.Canvas):
     그라데이션으로 채워진다. 창 크기에 맞춰 set_size()로 지름을 조절할 수 있다."""
 
     RING_WIDTH_RATIO = 0.075
-    GLOW_RATIO = 0.115      # 캔버스 바깥쪽에서 글로우(빛번짐)가 차지하는 비율
+    GLOW_RATIO = 0.17       # 캔버스 바깥쪽에서 글로우(빛번짐)가 차지하는 비율
 
     def __init__(self, parent, command=None, size=210, page_bg=BG):
         super().__init__(parent, width=size, height=size, bg=page_bg, highlightthickness=0, bd=0)
@@ -331,7 +331,8 @@ class CircularStartButton(tk.Canvas):
         #    안쪽으로 겹쳐 그려, 버튼 주변이 은은하게 빛나 보이게 한다.
         if self._clickable():
             glow_color = SUCCESS if self._running else ACCENT
-            peak = 0.46 if self._hover else 0.30
+            # LED처럼 또렷하게 빛나 보이도록 번짐을 진하게 준다.
+            peak = 0.78 if self._hover else 0.55
             steps = max(6, int(glow))
             for i in range(steps):
                 depth = (i + 1) / steps          # 안쪽으로 갈수록 1에 가까워진다
@@ -409,12 +410,14 @@ class RoundedCard(tk.Frame):
     패턴과 같은 원리. 실제 콘텐츠는 반드시 .body 안에 넣어야 한다."""
 
     def __init__(self, parent, page_bg=None, card_bg=None, border=None, radius=14, padding=14, expand=False,
-                 body_style='Panel.TFrame', inset=None):
+                 body_style='Panel.TFrame', inset=None, shadow=False):
         page_bg = page_bg if page_bg is not None else BG
         card_bg = card_bg if card_bg is not None else PANEL
         border = border if border is not None else BORDER
         super().__init__(parent, bg=page_bg)
         self.radius = radius
+        self.shadow = shadow
+        self.page_bg = page_bg
         self.card_bg = card_bg
         self.border_color = border
         # inset: 카드 테두리와 내용 사이의 여백(px). 기본은 radius와 같게 두지만,
@@ -460,6 +463,17 @@ class RoundedCard(tk.Frame):
 
     def _redraw(self, w, h):
         self.canvas.delete('card_bg')
+        if self.shadow:
+            # 카드가 배경 위에 살짝 떠 있어 보이게 아주 옅은 그림자를 깐다.
+            # 그림자로 새로 생긴 도형에만 태그를 단다 - 예전엔 'all'에 태그를
+            # 덮어써서 본문 창까지 'card_bg'가 되었고, 다음 렌더링의
+            # delete('card_bg')가 카드 내용을 지워 프로그램이 죽었다.
+            before = set(self.canvas.find_all())
+            draw_soft_shadow(self.canvas, 3, 2, w - 3, h - 5, self.radius,
+                             self.page_bg, depth=4, spread=1.1)
+            for item in self.canvas.find_all():
+                if item not in before:
+                    self.canvas.addtag_withtag('card_bg', item)
         points = _rounded_rect_points(1, 1, w - 1, h - 1, self.radius)
         self.canvas.create_polygon(points, smooth=True, fill=self.card_bg,
                                     outline=self.border_color, width=1, tags='card_bg')

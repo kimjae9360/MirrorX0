@@ -58,7 +58,7 @@ STRINGS = {
         'depth_preset_10': '10 · Covers most sites',
         'depth_caption_limited': 'Only follows links up to the level you set. 1 means just this page; higher numbers reach further.',
         'depth_caption_unlimited': (
-            "Same as HTTrack's default: follows links with no limit and downloads every page on the site. "
+            "MirrorX0 default: follows links with no limit and downloads every page on the site. "
             "Large sites can take a long time and use a lot of space. Turn on the checkbox above only if you "
             "want to narrow the scope."
         ),
@@ -147,7 +147,7 @@ STRINGS = {
             'They only affect Site Mirroring.'
         ),
         'label_user_agent': 'User-Agent',
-        'caption_user_agent': "Leave blank to use HTTrack's default.",
+        'caption_user_agent': 'Leave blank to use the default.',
         'label_connections': 'Concurrent Connections',
         'caption_connections': 'Lower this if the site keeps blocking you or refusing connections. Default 8.',
         'label_retries': 'Retry Count',
@@ -280,8 +280,8 @@ STRINGS = {
 
         'warn_need_url': '[Warning] Please enter at least one URL to download!',
         'warn_need_project_name': '[Warning] Please enter a project name!',
-        'error_engine_missing': '[ERROR] HTTrack engine not found: {path}',
-        'log_engine_init': 'Initializing HTTrack engine...',
+        'error_engine_missing': '[ERROR] Download engine not found: {path}',
+        'log_engine_init': 'Starting MirrorX0 download engine...',
         'warn_disk_critical': (
             '[Warning] Not enough free disk space (only {free}MB left) — not starting. '
             'Free up some space and try again.'
@@ -386,7 +386,7 @@ STRINGS = {
         'summary_schedule_none': 'No scheduled jobs',
         'btn_edit_job': 'Edit',
         'btn_delete_job': 'Delete',
-        'job_mode_httrack': 'Regular (HTTrack)',
+        'job_mode_httrack': 'Fast (normal sites)',
         'job_mode_smart': 'Smart (browser-rendered)',
         'job_mode_both': 'Both',
         'schedule_type_once': 'Once',
@@ -510,30 +510,16 @@ STRINGS = {
             'Turn crawled pages into clean, structured data. Pick the one that fits what '
             'you have right now.'
         ),
-        'desc_ai_extract': (
-            "Already mirrored a site? Pull out just the fields you want (name, price, etc.) "
-            'from every page into a table.'
-        ),
-        'desc_pagination_extract': (
-            'A listing/catalog page that continues onto more pages ("Next", "Load more")? '
-            'Give the starting address and it follows every page into one combined table — '
-            'no need to mirror the site first.'
-        ),
-        'desc_click_select': (
-            'Not sure how to describe what you want, or automatic detection got confused? '
-            'Open a real browser, hover and click one example item, and it finds every '
-            'similar item on the page.'
-        ),
-        'desc_clean_organize': (
-            'Already mirrored a site? Make a tidy copy with assets sorted into css/js/images/'
-            'fonts and HTTrack bookkeeping files removed — handy for referencing while developing.'
-        ),
+        'desc_ai_extract': 'Pull just the fields you want out of a mirrored site, into a table.',
+        'desc_pagination_extract': 'Follows "Next" through every page and builds one table.',
+        'desc_click_select': 'Click one example in a real browser; it finds all similar items.',
+        'desc_clean_organize': 'Makes a tidy copy sorted into css/js/images/fonts.',
         'caption_tool_needs_project': 'Needs a completed project (mirror or smart-crawl a site first).',
         'btn_use_tool': 'Use',
 
         'btn_clean_organize': 'Make a Tidy Copy',
         'log_clean_organize_started': (
-            'Creating a tidy copy (assets sorted into css/js/images/fonts, HTTrack '
+            'Creating a tidy copy (assets sorted into css/js/images/fonts, engine '
             "bookkeeping files removed). The original folder is left untouched..."
         ),
         'log_clean_organize_done': 'Tidy copy created: {path}',
@@ -635,7 +621,7 @@ STRINGS = {
         'depth_preset_10': '10 · 대부분 커버',
         'depth_caption_limited': '입력한 단계까지만 링크를 따라갑니다. 1이면 지금 주소만, 숫자가 클수록 더 멀리까지 받아요.',
         'depth_caption_unlimited': (
-            'HTTrack 기본값과 동일하게 제한 없이 사이트에 있는 모든 페이지를 링크를 따라가며 받습니다. '
+            '제한 없이 사이트에 있는 모든 페이지를 링크를 따라가며 받습니다. '
             '사이트가 크면 시간이 오래 걸리고 용량도 커질 수 있어요. 범위를 좁히고 싶을 때만 위 체크박스를 켜세요.'
         ),
         'label_same_folder': '시작 주소와 같은 폴더 안에서만',
@@ -722,7 +708,7 @@ STRINGS = {
             '그 설정들은 사이트 미러링에만 영향을 줍니다.'
         ),
         'label_user_agent': 'User-Agent',
-        'caption_user_agent': '비워두면 HTTrack 기본값을 사용합니다.',
+        'caption_user_agent': '비워두면 기본값을 사용합니다.',
         'label_connections': '동시 연결 수',
         'caption_connections': '사이트가 자꾸 막거나 연결을 거부하면 낮춰보세요. 기본 8.',
         'label_retries': '재시도 횟수',
@@ -854,8 +840,8 @@ STRINGS = {
 
         'warn_need_url': '[경고] 받을 주소를 최소 하나 이상 입력해주세요!',
         'warn_need_project_name': '[경고] 프로젝트 이름을 입력해주세요!',
-        'error_engine_missing': '[ERROR] HTTrack 엔진 경로 누락: {path}',
-        'log_engine_init': 'HTTrack 엔진 초기화 중...',
+        'error_engine_missing': '[ERROR] 다운로드 엔진 경로 누락: {path}',
+        'log_engine_init': 'MirrorX0 다운로드 엔진을 준비하는 중...',
         'warn_disk_critical': (
             '[경고] 디스크 여유 공간이 부족해({free}MB 남음) 시작하지 않습니다. '
             '공간을 확보한 뒤 다시 시도해주세요.'
@@ -960,7 +946,7 @@ STRINGS = {
         'summary_schedule_none': '등록된 예약 없음',
         'btn_edit_job': '수정',
         'btn_delete_job': '삭제',
-        'job_mode_httrack': '일반 (HTTrack)',
+        'job_mode_httrack': '빠르게 (일반 사이트)',
         'job_mode_smart': '스마트 (브라우저 렌더링)',
         'job_mode_both': '둘 다',
         'schedule_type_once': '1회',
@@ -1081,25 +1067,15 @@ STRINGS = {
             '이미 사이트를 받아뒀나요? 원하는 필드(이름, 가격 등)만 골라 모든 페이지에서 '
             '표로 뽑아냅니다.'
         ),
-        'desc_pagination_extract': (
-            '"다음", "더보기"로 계속 이어지는 목록/카탈로그 페이지인가요? 시작 주소만 '
-            '주면 모든 페이지를 따라가며 하나의 표로 이어붙입니다 - 사이트를 먼저 받을 '
-            '필요가 없어요.'
-        ),
-        'desc_click_select': (
-            '뭘 원하는지 설명하기 애매하거나 자동 감지가 헷갈려하나요? 실제 브라우저를 '
-            '열어 예시 항목 하나를 클릭하면, 페이지에서 비슷한 항목을 전부 찾아줍니다.'
-        ),
-        'desc_clean_organize': (
-            '이미 사이트를 받아뒀나요? 자산을 css/js/images/fonts로 정리하고 HTTrack '
-            '관리 파일을 뺀 깔끔한 사본을 만듭니다 - 개발 참고용으로 좋아요.'
-        ),
+        'desc_pagination_extract': '"다음"으로 이어지는 목록을 끝까지 따라가 하나의 표로 만듭니다.',
+        'desc_click_select': '브라우저에서 예시 하나를 클릭하면 비슷한 항목을 전부 찾아줍니다.',
+        'desc_clean_organize': '받아둔 사이트를 css/js/images/fonts로 정돈한 사본을 만듭니다.',
         'caption_tool_needs_project': '완료된 프로젝트가 필요합니다(먼저 사이트를 미러링/스마트 크롤링하세요).',
         'btn_use_tool': '사용',
 
         'btn_clean_organize': '정리된 사본 만들기',
         'log_clean_organize_started': (
-            '정리된 사본을 만드는 중입니다 (css/js/images/fonts로 재배치, HTTrack 관리 '
+            '정리된 사본을 만드는 중입니다 (css/js/images/fonts로 재배치, 엔진 관리 '
             '파일 제거). 원본 폴더는 그대로 둡니다...'
         ),
         'log_clean_organize_done': '정리된 사본을 만들었습니다: {path}',
