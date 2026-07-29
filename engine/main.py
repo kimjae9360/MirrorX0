@@ -347,7 +347,7 @@ class MirrorXApp:
     def _build_ui(self):
         self.root.title('MirrorX0')
         # 좌측 내비게이션(260px)이 생긴 만큼 창도 그만큼 넓게 잡는다.
-        self.root.geometry('1560x900')
+        self.root.geometry('1560x940')
         self.root.minsize(1240, 740)
 
         # 스크롤 없이 한 화면에 다 들어가는 구조. grid의 weight로 창을 줄이면
@@ -384,8 +384,15 @@ class MirrorXApp:
         bottom.grid_columnconfigure(0, weight=3, uniform='bottom')
         bottom.grid_columnconfigure(1, weight=2, uniform='bottom')
 
-        settings_col = tk.Frame(bottom, bg=BG)
-        settings_col.grid(row=0, column=0, sticky='nsew', padx=(0, 9))
+        # 설정 항목 수는 모드에 따라 달라지고(미러링 5행 / 크롤링 없음) 화면
+        # 높이도 사용자마다 다르다. 창을 키우는 것만으로는 1080p 같은 환경에서
+        # 아래가 잘리므로(실제로 '완료 후 동작' 행이 잘렸다), 남으면 그냥 보이고
+        # 모자라면 스크롤되게 한다.
+        # make_scrollable은 부모에 pack으로 붙으므로, grid를 쓰는 형제(로그 열)와
+        # 충돌하지 않도록 전용 홀더 안에 넣는다.
+        settings_holder = tk.Frame(bottom, bg=BG)
+        settings_holder.grid(row=0, column=0, sticky='nsew', padx=(0, 9))
+        settings_col = make_scrollable(settings_holder, bg=BG)
         log_col = tk.Frame(bottom, bg=BG)
         log_col.grid(row=0, column=1, sticky='nsew', padx=(9, 0))
         self._build_settings_column(settings_col)
@@ -491,7 +498,9 @@ class MirrorXApp:
 
     # 데이터 추출 도구 - (키, 아이콘, 제목 문자열키, 설명 문자열키).
     # 메인 화면의 '데이터로 뽑기'와 데이터 도구 창이 같은 목록을 쓰도록 한곳에 둔다.
-    DATA_CARD_WIDTH = 520
+    DATA_CARD_WIDTH = 360
+    DATA_CARD_HEIGHT = 190
+    SKETCH_HEIGHT = 52
 
     _DATA_TOOLS = (
         ('ai_extract', '🤖', 'btn_ai_extract', 'desc_ai_extract'),
@@ -615,8 +624,6 @@ class MirrorXApp:
         # 내용만 보여준다. 화면 안에 토글을 겹겹이 두면 오히려 헷갈린다는
         # 피드백을 반영해 세그먼트 컨트롤을 걷어냈다.
         self._intent_caption_var = tk.StringVar(value=t('caption_intent_save'))
-        tk.Label(center, textvariable=self._intent_caption_var, bg=BG, fg=FG_MUTED,
-                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=420, justify='center').pack(pady=(0, 10))
 
         # --- (A) 사이트 다운로드 ---
         self._save_zone = tk.Frame(center, bg=BG)
@@ -627,11 +634,12 @@ class MirrorXApp:
         # 무엇인지 한 줄로만 알려준다.
         self.mode_var = tk.StringVar(value='mirror')
         self._mode_caption_var = tk.StringVar(value=t('caption_mode_mirror'))
-        tk.Label(self._save_zone, textvariable=self._mode_caption_var, bg=BG, fg=FG_MUTED,
-                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=380, justify='center').pack(pady=(0, 10))
 
-        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=180)
+        self.start_button = CircularStartButton(self._save_zone, command=self._on_power_clicked, size=140)
         self.start_button.pack()
+        # 못 누르는 버튼도 '왜 못 누르는지'는 말해줘야 한다. 위젯이 비활성일 때
+        # command를 막으므로, 클릭 자체는 따로 받아서 이유를 띄운다.
+        self.start_button.bind('<Button-1>', self._on_start_click_attempt, add='+')
         self.job_var = tk.StringVar()
         # height=1로 한 줄을 미리 잡아둔다. 상태 문구가 나타났다 사라질 때
         # 아래 내용이 위아래로 밀리지 않게 하기 위함.
@@ -645,31 +653,38 @@ class MirrorXApp:
         # 폭을 고정해야 카드 4장의 오른쪽 끝이 맞는다. 예전엔 카드마다 내용에
         # 맞춰 폭이 달라져서 버튼이 카드 배경 밖으로 삐져나왔다.
         self._data_zone = tk.Frame(center, bg=BG)
-        # 높이는 내용에 맞게 늘어나야 하므로 pack_propagate를 끄면 안 된다
-        # (끄면 높이가 1px로 얼어붙어 카드가 통째로 안 보인다 - 실제로 겪음).
-        # 대신 높이 0짜리 막대로 최소 폭만 잡아준다.
-        tk.Frame(self._data_zone, bg=BG, width=self.DATA_CARD_WIDTH, height=0).pack()
-        for key, icon, title_key, desc_key in self._DATA_TOOLS:
-            # 버튼을 따로 두지 않고 카드 전체를 누르게 한다 - 행마다 주황 버튼이
-            # 있으면 넷 다 강조되어 오히려 아무것도 강조되지 않는다.
-            row = RoundedCard(self._data_zone, radius=14, padding=16)
-            row.pack(fill='x', pady=5)
-            inner = ttk.Frame(row.body, style='Panel.TFrame')
-            inner.pack(fill='x')
-            icon_lbl = tk.Label(inner, text=icon, bg=PANEL, fg=ACCENT,
-                                font=(FONTS['ui'], TYPE_TITLE))
-            icon_lbl.pack(side='left', padx=(0, 14))
-            chev = tk.Label(inner, text='›', bg=PANEL, fg=FG_MUTED,
-                            font=(FONTS['ui'], TYPE_TITLE))
-            chev.pack(side='right', padx=(8, 0))
-            col = ttk.Frame(inner, style='Panel.TFrame')
-            col.pack(side='left', fill='x', expand=True)
-            title_lbl = ttk.Label(col, text=t(title_key), style='RowTitle.TLabel')
-            title_lbl.pack(anchor='w')
-            desc_lbl = ttk.Label(col, text=t(desc_key), style='Caption.TLabel',
-                                 wraplength=self.DATA_CARD_WIDTH - 120, justify='left')
-            desc_lbl.pack(anchor='w', pady=(2, 0))
-            for w in (row, row.canvas, inner, col, icon_lbl, chev, title_lbl, desc_lbl):
+        for c in (0, 1):
+            self._data_zone.grid_columnconfigure(c, minsize=self.DATA_CARD_WIDTH, weight=0)
+        for i, (key, icon, title_key, desc_key) in enumerate(self._DATA_TOOLS):
+            # 카드를 늘리지 않고 폭을 고정한다. fill/sticky로 늘리면 캔버스가 커진 뒤
+            # 배경만 예전 폭으로 남아 글자가 흰 배경 밖으로 나가 보인다.
+            holder = tk.Frame(self._data_zone, bg=BG, width=self.DATA_CARD_WIDTH)
+            holder.grid(row=i // 2, column=i % 2, padx=6, pady=6)
+            holder.grid_propagate(False)
+            holder.configure(height=self.DATA_CARD_HEIGHT)
+
+            row = RoundedCard(holder, radius=14, padding=14)
+            row.place(x=0, y=0, width=self.DATA_CARD_WIDTH, height=self.DATA_CARD_HEIGHT)
+            head_row = ttk.Frame(row.body, style='Panel.TFrame')
+            head_row.pack(fill='x')
+            icon_lbl = tk.Label(head_row, text=icon, bg=PANEL, fg=ACCENT,
+                                font=(FONTS['ui'], TYPE_BODY_LARGE))
+            icon_lbl.pack(side='left', padx=(0, 10))
+            title_lbl = ttk.Label(head_row, text=t(title_key), style='RowTitle.TLabel')
+            title_lbl.pack(side='left')
+            chev = tk.Label(head_row, text='›', bg=PANEL, fg=FG_MUTED,
+                            font=(FONTS['ui'], TYPE_BODY_LARGE))
+            chev.pack(side='right')
+            desc_lbl = ttk.Label(row.body, text=t(desc_key), style='Caption.TLabel',
+                                 wraplength=self.DATA_CARD_WIDTH - 60, justify='left')
+            desc_lbl.pack(anchor='w', pady=(6, 6))
+            # 무엇을 하는 도구인지 그림으로 한 번 더 보여준다(글만 있으면 잘 안 읽힌다).
+            sketch = tk.Canvas(row.body, bg=PANEL, highlightthickness=0,
+                               width=10, height=self.SKETCH_HEIGHT)
+            sketch.pack(fill='x')
+            sketch.bind('<Configure>',
+                        lambda e, k=key, cv=None: self._draw_tool_sketch(e.widget, k))
+            for w in (row, row.canvas, head_row, icon_lbl, title_lbl, chev, desc_lbl, sketch, holder):
                 w.bind('<Button-1>', lambda _e, k=key: self._on_data_tool_picked(k))
                 try:
                     w.configure(cursor='hand2')
@@ -683,7 +698,7 @@ class MirrorXApp:
         높이가 아니라 폭에만 반응시킨다 - 높이에 반응시키면 (버튼이 커짐 → 창이
         더 필요해짐 → 다시 계산) 식으로 서로를 밀어내며 흔들릴 수 있기 때문."""
         # 캔버스에는 글로우 여백도 포함되므로 실제 원보다 조금 크게 잡는다.
-        self.start_button.set_size(max(146, min(180, event.width * 0.22)))
+        self.start_button.set_size(max(120, min(140, event.width * 0.18)))
 
     def _sync_stat_captions(self):
         """모드에 따라 지표 이름을 바꾼다 (미러링은 '스캔한 링크', 스마트는 '방문한 페이지')."""
@@ -824,7 +839,7 @@ class MirrorXApp:
             row_card = self._option_row(self._options_area, group, icon, t(title_key),
                                         self._summary_vars[group])
             row_card.grid(row=i // 2, column=i % 2, sticky='ew',
-                          padx=(0, 4) if i % 2 == 0 else (4, 0), pady=3)
+                          padx=(0, 4) if i % 2 == 0 else (4, 0), pady=2)
         self._refresh_option_summaries()
 
     def _on_mode_changed(self, _value=None):
@@ -864,6 +879,9 @@ class MirrorXApp:
             # 데이터 추출 화면에서는 늘 '-'로 남아 자리만 차지한다.
             self._left_stats.grid_remove()
             self._right_stats.grid_remove()
+            # 각 도구가 자기 창에서 필요한 값을 직접 받으므로, 아래 프로젝트
+            # 설정 카드는 크롤링에서 쓸 일이 없다.
+            self._settings_card.master.pack_forget()
             self._project_title_var.set(t('panel_project_data'))
         else:
             self._data_zone.pack_forget()
@@ -874,6 +892,7 @@ class MirrorXApp:
                 self._action_col.grid()
             self._left_stats.grid()
             self._right_stats.grid()
+            self._settings_card.master.pack(fill='x')
             self._project_title_var.set(t('panel_project'))
         self._sync_nav_selection()
         self._sync_start_button()
@@ -978,7 +997,7 @@ class MirrorXApp:
             pause = self._effective_smart_pause()
             if pause:
                 text += f' · {pause[0]}~{pause[1]}s'
-            self._summary_vars['smart'].set(text)
+            self._summary_vars['smart'].set(self._shorten(text))
         if 'scope' not in self._summary_vars:
             # 스마트 모드에서는 미러링 전용 요약 행이 없으므로 여기서 끝낸다.
             self._set_power_summary()
@@ -988,10 +1007,11 @@ class MirrorXApp:
         scope_text = t('scope_unlimited') if depth is None else t('scope_n_levels', depth=depth)
         if self.same_folder_var.get():
             scope_text += f" · {t('label_same_folder')}"
-        self._summary_vars['scope'].set(scope_text)
+        self._summary_vars['scope'].set(self._shorten(scope_text))
 
         chosen = [label for var, _exts, label in self.filter_entries if var.get()]
-        self._summary_vars['files'].set(' · '.join(chosen) if chosen else t('filters_none'))
+        self._summary_vars['files'].set(
+            self._shorten(' · '.join(chosen)) if chosen else t('filters_none'))
 
         safety_parts = []
         if self.pause_enable_var.get():
@@ -1015,6 +1035,14 @@ class MirrorXApp:
             power_text = t('power_text_none')
         self._summary_vars['power'].set(power_text)
 
+    @staticmethod
+    def _shorten(text, limit=20):
+        """요약 행은 한 줄이라 값이 길면 그냥 잘려 보인다(예: '이미지 (png, gif,
+        jpg, webp 등) · 스' 처럼 문장 중간에서 끊김). 넘치면 말줄임표로 끝내서
+        '더 있다'는 걸 알 수 있게 한다."""
+        text = text or ''
+        return text if len(text) <= limit else text[:limit - 1].rstrip() + '…'
+
     def _set_schedule_summary(self):
         if 'schedule' not in self._summary_vars:
             return
@@ -1032,7 +1060,9 @@ class MirrorXApp:
         # '시작'이라고 쓰여 있어서 굳이 한 번 더 말할 필요가 없다.
         # (실행 중/완료 메시지는 각자 덮어쓰므로 여기서 건드리지 않는다.)
         if not getattr(self, '_busy', False):
-            self._set_status('' if has_urls else t('hint_need_url'))
+            # 평상시엔 비워 둔다. 못 누르는 이유는 실제로 눌렀을 때 알려주는 편이
+            # 낫다는 피드백을 반영(늘 떠 있는 안내문은 자리만 차지한다).
+            self._set_status('')
 
     def _set_status(self, text, emphasis=False):
         """버튼 아래 상태줄. 완료처럼 중요한 순간만 진한 색으로 강조한다."""
@@ -1069,6 +1099,13 @@ class MirrorXApp:
             self.project_var.set(name)
         finally:
             self._filling_project_name = False
+
+    def _on_start_click_attempt(self, _event=None):
+        """비활성 상태에서 눌렀을 때만 이유를 알려준다(활성이면 command가 처리)."""
+        if getattr(self, '_busy', False) or self.start_button._enabled:
+            return
+        self._set_status(t('hint_need_url'), emphasis=True)
+        self._log(t('hint_need_url'))
 
     def _on_power_clicked(self):
         """가운데 원형 버튼 하나로 시작/중지를 모두 처리한다."""
@@ -1314,6 +1351,51 @@ class MirrorXApp:
         out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
         has_project = os.path.isdir(out_dir)
         DataToolsDialog(self.root, has_project, on_pick=self._on_data_tool_picked)
+
+    def _draw_tool_sketch(self, cv, key):
+        """도구가 하는 일을 아주 단순한 그림으로 보여준다.
+        (페이지 -> 표, 여러 페이지 -> 한 표, 클릭 -> 표, 어수선한 폴더 -> 정돈)"""
+        cv.delete('all')
+        w = cv.winfo_width()
+        if w <= 1:
+            return
+        h = self.SKETCH_HEIGHT
+        pen, fill = BORDER, PANEL_LIGHT
+
+        def page(x, y, pw=26, ph=32, lines=3):
+            cv.create_rectangle(x, y, x + pw, y + ph, outline=pen, fill=fill)
+            for i in range(lines):
+                ly = y + 7 + i * 7
+                cv.create_line(x + 5, ly, x + pw - 5, ly, fill=FG_MUTED)
+
+        def table(x, y, tw=44, th=32):
+            cv.create_rectangle(x, y, x + tw, y + th, outline=pen, fill=fill)
+            cv.create_rectangle(x, y, x + tw, y + 9, outline=pen, fill=ACCENT_SOFT)
+            for i in range(1, 3):
+                cv.create_line(x, y + 9 + i * 8, x + tw, y + 9 + i * 8, fill=pen)
+            cv.create_line(x + tw / 2, y + 9, x + tw / 2, y + th, fill=pen)
+
+        def arrow(x, y):
+            cv.create_line(x, y, x + 20, y, fill=ACCENT, width=2, arrow='last')
+
+        cy = (h - 32) // 2
+        mid = h // 2
+        if key == 'ai_extract':
+            page(8, cy); arrow(42, mid); table(70, cy)
+        elif key == 'pagination':
+            page(6, cy, pw=20, lines=2); page(20, cy, pw=20, lines=2); page(34, cy, pw=20, lines=2)
+            arrow(60, mid); table(88, cy)
+        elif key == 'click_select':
+            page(8, cy)
+            cv.create_oval(24, cy + 12, 34, cy + 22, outline=ACCENT, width=2)
+            arrow(42, mid); table(70, cy)
+        else:  # clean_organize
+            for i, x in enumerate((6, 22, 38)):
+                cv.create_rectangle(x, cy + 4 + (i % 2) * 6, x + 12, cy + 20 + (i % 2) * 6,
+                                    outline=pen, fill=fill)
+            arrow(58, mid)
+            for i, x in enumerate((86, 102, 118)):
+                cv.create_rectangle(x, cy + 8, x + 12, cy + 24, outline=pen, fill=ACCENT_SOFT)
 
     def _on_data_tool_picked(self, key):
         if key == 'ai_extract':
