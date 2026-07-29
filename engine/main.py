@@ -11,7 +11,7 @@ import subprocess
 import threading
 import multiprocessing
 import tkinter as tk
-from tkinter import ttk, filedialog, scrolledtext
+from tkinter import ttk, filedialog, scrolledtext, messagebox
 from datetime import datetime
 
 import jobs as jobs_mod
@@ -215,6 +215,7 @@ class PreferencesDialog(tk.Toplevel):
         # 안 만든다 - Playwright 기반 스마트 크롤링은 그 값들을 하나도 읽지 않으므로
         # 보여줘 봐야 "바꿔도 아무 효과 없는 설정"이 될 뿐이다.
         self.mode = mode
+        self._parent = parent
         super().__init__(parent)
         self.title(t('prefs_title'))
         self.configure(bg=BG)
@@ -236,6 +237,10 @@ class PreferencesDialog(tk.Toplevel):
         btn_row.pack(fill='x')
         RoundedButton(btn_row, t('btn_save'), command=self._save, variant='accent').pack(side='right', padx=(6, 0))
         RoundedButton(btn_row, t('btn_cancel'), command=self.destroy, variant='ghost').pack(side='right')
+        # 전문가 설정을 잘못 건드려도(값을 몰라도) 되돌릴 수 있게, 왼쪽에 따로
+        # 둔다(저장/취소와 헷갈리지 않도록 시각적으로 분리).
+        RoundedButton(btn_row, t('btn_reset_defaults'), command=self._reset_to_defaults,
+                      variant='ghost').pack(side='left')
 
         # 내용이 창보다 길어져도(글자 크기를 키우거나 설정이 늘어나도) 잘리지 않도록
         # 스크롤 가능한 캔버스 안에 실제 내용을 넣는다.
@@ -501,6 +506,16 @@ class PreferencesDialog(tk.Toplevel):
         save_settings(self.settings)
         self.on_save()
         self.destroy()
+
+    def _reset_to_defaults(self):
+        # API 키까지 포함해서 전부 지워지는 되돌릴 수 없는 작업이라, 실수로
+        # 누르는 걸 막기 위해 반드시 한 번 더 확인받는다.
+        if not messagebox.askyesno(t('confirm_reset_title'), t('confirm_reset_body'), parent=self):
+            return
+        save_settings(dict(DEFAULT_SETTINGS))
+        self.on_save()
+        self.destroy()
+        PreferencesDialog(self._parent, load_settings(), on_save=self.on_save, mode=self.mode)
 
 
 class ExistingMirrorDialog(tk.Toplevel):

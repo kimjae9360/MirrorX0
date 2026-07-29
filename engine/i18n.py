@@ -23,6 +23,12 @@ STRINGS = {
         'btn_stop': 'Stop',
         'btn_cancel': 'Cancel',
         'btn_save': 'Save',
+        'btn_reset_defaults': 'Reset to Defaults',
+        'confirm_reset_title': 'Reset all preferences?',
+        'confirm_reset_body': (
+            'This resets every preference — including saved API keys — back to the '
+            'original defaults. This cannot be undone. Continue?'
+        ),
         'btn_browse': 'Browse',
         'btn_open_folder': 'Open Result Folder',
         'btn_no': 'No',
@@ -525,6 +531,12 @@ STRINGS = {
         'btn_stop': '중지',
         'btn_cancel': '취소',
         'btn_save': '저장',
+        'btn_reset_defaults': '기본값으로 초기화',
+        'confirm_reset_title': '환경설정을 초기화할까요?',
+        'confirm_reset_body': (
+            '저장된 API 키를 포함한 모든 환경설정이 원래 기본값으로 되돌아갑니다. '
+            '되돌릴 수 없습니다. 계속할까요?'
+        ),
         'btn_browse': '찾아보기',
         'btn_open_folder': '결과 폴더 열기',
         'btn_no': '아니오',
