@@ -173,7 +173,7 @@ nav {
   color: var(--fg);
 }
 
-/* Hero Image Placeholder */
+/* Hero Screenshot */
 .hero-image {
   max-width: 1000px;
   margin: 0 auto;
@@ -181,12 +181,6 @@ nav {
   border: 1px solid var(--border);
   border-radius: 20px;
   box-shadow: var(--shadow-md);
-  aspect-ratio: 16/9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--fg-muted);
-  font-size: 1.25rem;
   overflow: hidden;
 }
 
@@ -285,33 +279,92 @@ tr:last-child td {
   font-weight: 600;
 }
 
-/* How it works */
-.steps-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 48px;
+/* Feature showcase screenshot */
+.showcase {
+  margin: 72px 0 0;
+  text-align: center;
+}
+
+.showcase img {
+  width: 100%;
+  max-width: 1000px;
+  height: auto;
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  box-shadow: var(--shadow-md);
+  display: block;
+  margin: 0 auto;
+}
+
+.showcase figcaption {
+  margin-top: 20px;
+  color: var(--fg-muted);
+  font-size: 0.95rem;
+}
+
+/* How it works - 실제 스크린샷을 곁들인 튜토리얼 */
+.tutorial-list {
+  display: flex;
+  flex-direction: column;
+  gap: 96px;
   margin-top: 80px;
 }
 
-.step-card {
-  text-align: center;
-  padding: 40px 24px;
+.tutorial-step {
+  display: grid;
+  grid-template-columns: minmax(260px, 380px) 1fr;
+  gap: 56px;
+  align-items: center;
 }
 
-.step-number {
-  width: 64px;
-  height: 64px;
+.tutorial-step.reverse .tutorial-text {
+  order: 2;
+}
+
+.tutorial-step.reverse .tutorial-shot {
+  order: 1;
+}
+
+.tutorial-text .step-number {
+  width: 48px;
+  height: 48px;
   background-color: var(--panel);
   border: 1px solid var(--border);
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 1.75rem;
+  font-size: 1.35rem;
   font-weight: 700;
   color: var(--accent);
-  margin: 0 auto 32px;
+  margin-bottom: 24px;
   box-shadow: var(--shadow-sm);
+}
+
+.tutorial-text h3 {
+  font-size: 1.6rem;
+  margin-bottom: 12px;
+}
+
+.tutorial-text p {
+  font-size: 1.05rem;
+  line-height: 1.8;
+  margin-bottom: 0;
+}
+
+.tutorial-shot {
+  background-color: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  box-shadow: var(--shadow-sm);
+  padding: 14px;
+}
+
+.tutorial-shot img {
+  width: 100%;
+  height: auto;
+  display: block;
+  border-radius: 10px;
 }
 
 /* Download Section */
@@ -478,8 +531,21 @@ footer {
   
   section { padding: 100px 0; }
   
-  .steps-grid { grid-template-columns: 1fr; gap: 32px; }
-  
+  .tutorial-list { gap: 56px; }
+
+  .tutorial-step,
+  .tutorial-step.reverse {
+    grid-template-columns: 1fr;
+    gap: 24px;
+  }
+
+  .tutorial-step .tutorial-text,
+  .tutorial-step.reverse .tutorial-text,
+  .tutorial-step .tutorial-shot,
+  .tutorial-step.reverse .tutorial-shot {
+    order: initial;
+  }
+
   .comparison-table-wrapper { overflow-x: auto; }
   
   .footer-content {

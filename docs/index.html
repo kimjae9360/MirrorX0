@@ -44,11 +44,7 @@
       </div>
       
       <div class="hero-image">
-        <!-- Placeholder for actual app screenshot -->
-        <div style="padding: 100px 20px; text-align: center;">
-          <span style="font-size: 3rem; display: block; margin-bottom: 20px;">🖼️</span>
-          여기에 프로그램 스크린샷이 들어갑니다
-        </div>
+        <img src="assets/img/hero.png" alt="MirrorX0 실행 화면 - 주소를 입력하고 시작 버튼을 누르기 직전 모습" loading="lazy" width="1576" height="1006">
       </div>
     </div>
   </section>
@@ -83,6 +79,11 @@
         <p>가볍고 빠른 수집이 필요할 땐 'HTTrack 엔진'으로, 복잡한 최신 사이트일 땐 'Smart Crawl'로. 버튼 하나로 최적의 모드를 골라 쓰세요.</p>
       </div>
     </div>
+
+    <figure class="showcase fade-in">
+      <img src="assets/img/feature-crawl.png" alt="크롤링 화면 - AI 추출, 목록 페이지네이션 추출, 클릭해서 고르기, 정리된 사본 만들기 네 가지 데이터 도구" loading="lazy" width="1576" height="1006">
+      <figcaption>받아둔 사이트에서 원하는 데이터만 골라 표로 뽑아내는 '크롤링' 화면.</figcaption>
+    </figure>
   </section>
 
   <!-- Comparison Table -->
@@ -132,24 +133,40 @@
   <!-- How it works (시작하기) -->
   <section id="how-it-works" class="container">
     <h2 class="section-title fade-in">3단계면 충분합니다</h2>
-    
-    <div class="steps-grid">
-      <div class="step-card fade-in">
-        <div class="step-number">1</div>
-        <h3>주소 입력</h3>
-        <p>복제하고 싶은 웹사이트의 URL을 대시보드에 입력합니다.</p>
+    <p class="section-subtitle lead fade-in">실제 프로그램 화면 그대로입니다. 설치 후 이 순서 그대로 따라 하면 됩니다.</p>
+
+    <div class="tutorial-list">
+      <div class="tutorial-step fade-in">
+        <div class="tutorial-text">
+          <div class="step-number">1</div>
+          <h3>주소와 이름 입력</h3>
+          <p>받고 싶은 웹사이트 주소를 넣고, 프로젝트 이름을 정해줍니다. 주소를 넣는 순간 가운데 시작 버튼이 눌러지도록 밝아집니다.</p>
+        </div>
+        <div class="tutorial-shot">
+          <img src="assets/img/tutorial-address.png" alt="받을 주소와 프로젝트 이름을 입력하는 화면" loading="lazy" width="780" height="260">
+        </div>
       </div>
-      
-      <div class="step-card fade-in">
-        <div class="step-number">2</div>
-        <h3>모드 선택</h3>
-        <p>빠른 미러링(HTTrack)을 쓸지, 정밀한 스마트 크롤링을 쓸지 선택합니다.</p>
+
+      <div class="tutorial-step reverse fade-in">
+        <div class="tutorial-text">
+          <div class="step-number">2</div>
+          <h3>받는 방식 선택</h3>
+          <p>정적인 일반 사이트는 '빠르게', React/Vue처럼 자바스크립트로 그려지는 사이트는 '브라우저로'를 고릅니다. 어떤 걸 골라야 할지 헷갈리면 설명을 그대로 읽고 고르면 됩니다.</p>
+        </div>
+        <div class="tutorial-shot">
+          <img src="assets/img/tutorial-method.png" alt="받는 방식 선택 화면 - 빠르게(일반 사이트) 또는 브라우저로(JS 사이트)" loading="lazy" width="736" height="335">
+        </div>
       </div>
-      
-      <div class="step-card fade-in">
-        <div class="step-number">3</div>
-        <h3>시작하기</h3>
-        <p>Start 버튼을 누르고 실시간 로그를 보며 완료를 기다리면 끝입니다.</p>
+
+      <div class="tutorial-step fade-in">
+        <div class="tutorial-text">
+          <div class="step-number">3</div>
+          <h3>시작하고 기다리기</h3>
+          <p>시작 버튼을 누르면 실시간 로그와 진행률이 표시되고, 끝나면 "완료되었어요"와 함께 결과 폴더를 바로 열 수 있습니다.</p>
+        </div>
+        <div class="tutorial-shot">
+          <img src="assets/img/tutorial-done.png" alt="다운로드가 완료된 화면 - 완료되었어요 상태 표시" loading="lazy" width="1040" height="290">
+        </div>
       </div>
     </div>
   </section>
