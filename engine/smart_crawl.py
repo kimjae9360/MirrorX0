@@ -95,7 +95,17 @@ def _inject_local_cookies(page, urls, log_fn):
     try:
         jar = browser_cookie3.load()
     except Exception as e:
-        log_fn(f'[스마트 크롤링] 브라우저 쿠키를 읽지 못했어요 (보안 프로그램 차단일 수 있음): {e}')
+        # Chrome이 켜져 있으면 쿠키 파일이 잠겨 있어서, 잠긴 채로도 읽으려면
+        # Windows 관리자 권한(Volume Shadow Copy)이 필요하다 - 이게 없어서 나는
+        # 에러가 가장 흔한 원인이라 따로 짚어준다(막연히 "보안 프로그램" 탓으로
+        # 돌리면 사용자가 정작 해결할 방법을 못 찾는다).
+        msg = str(e).lower()
+        if 'admin' in msg or 'permission denied' in msg or type(e).__name__ == 'RequiresAdminError':
+            log_fn('[스마트 크롤링] 브라우저 쿠키를 읽지 못했어요 - Chrome이 켜져 있으면 쿠키 파일이 '
+                   '잠겨 있어 관리자 권한 없이는 읽을 수 없어요. Chrome을 완전히 종료한 뒤 다시 '
+                   f'시도해주세요. (상세: {e})')
+        else:
+            log_fn(f'[스마트 크롤링] 브라우저 쿠키를 읽지 못했어요 (보안 프로그램 차단일 수 있음): {e}')
         return
 
     wanted = _cookie_domains_for(urls)
