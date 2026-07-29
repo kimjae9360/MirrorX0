@@ -18,6 +18,7 @@ import jobs as jobs_mod
 import scheduler_win
 import smart_crawl
 import pagination_extract
+import click_select
 import ai_extract
 import ai_scope
 import data_refine
@@ -1086,6 +1087,120 @@ class PaginationExtractDialog(tk.Toplevel):
         self.on_run(url, config, max_pages, self.use_cookies_var.get())
 
 
+class ClickToSelectDialog(tk.Toplevel):
+    """실제 웹페이지 화면에서 마우스로 항목 하나를 가리키고 클릭하면, 그것과
+    구조적으로 같은 종류인 형제 요소를 전부 찾아 표로 뽑는다(Listly의
+    '클릭해서 고르기' 참고). 자동 패턴 감지(AI 추출의 반복 항목 자동 감지)가
+    헷갈려하는 애매한 구조에서, 사용자가 직접 예시를 짚어 정확히 잡아주는
+    수동 경로다."""
+
+    def __init__(self, parent, settings, log_fn, on_extract):
+        super().__init__(parent)
+        self.title(t('dialog_click_select_title'))
+        self.configure(bg=BG)
+        self.geometry('520x700')
+        self.minsize(460, 480)
+        self.resizable(True, True)
+        self.transient(parent)
+        self.grab_set()
+        self.settings = settings
+        self.log_fn = log_fn
+        self.on_extract = on_extract
+        self._picked = None
+        self._queue = queue.Queue()
+
+        outer = make_scrollable(self)
+        outer.configure(padding=20)
+        ttk.Label(outer, text=t('dialog_click_select_title'), style='Title2.TLabel').pack(anchor='w', pady=(0, 6))
+        ttk.Label(outer, text=t('caption_click_select_intro'), style='Caption.TLabel',
+                  wraplength=460, justify='left').pack(anchor='w', pady=(0, 10))
+
+        ttk.Label(outer, text=t('label_click_select_url'), style='MutedRoot.TLabel').pack(anchor='w')
+        self.url_var = tk.StringVar()
+        ttk.Entry(outer, textvariable=self.url_var).pack(fill='x', pady=(4, 8), ipady=3)
+
+        self.use_cookies_var = tk.BooleanVar(value=bool(settings.get('use_local_cookies')))
+        ttk.Checkbutton(outer, text=t('label_use_local_cookies'), variable=self.use_cookies_var).pack(
+            anchor='w', pady=(0, 10))
+
+        self.pick_btn = RoundedButton(outer, t('btn_open_browser_pick'), command=self._start_pick,
+                                     variant='neutral', page_bg=PANEL)
+        self.pick_btn.pack(anchor='w')
+
+        self.status_var = tk.StringVar(value='')
+        ttk.Label(outer, textvariable=self.status_var, style='Caption.TLabel', wraplength=460,
+                  justify='left').pack(anchor='w', pady=(6, 10))
+
+        # 항목을 고르기 전에는 필드 정의 영역/실행 버튼을 숨겨둔다 - 고른 뒤에야 채워 넣는다.
+        self.fields_area = ttk.Frame(outer, style='Panel.TFrame')
+        self.btn_frame = ttk.Frame(outer)
+        RoundedButton(self.btn_frame, t('btn_cancel'), command=self.destroy, variant='ghost').pack(side='right')
+
+        self.after(150, self._poll)
+
+    def _start_pick(self):
+        url = self.url_var.get().strip()
+        if not url:
+            self.log_fn(t('warn_pagination_need_url'))
+            return
+        self.pick_btn.set_enabled(False)
+        self.status_var.set(t('status_click_select_waiting'))
+        use_cookies = self.use_cookies_var.get()
+
+        def worker():
+            try:
+                result = click_select.pick_element_and_collect(url, use_local_cookies=use_cookies)
+                self._queue.put(('picked', result))
+            except Exception as e:
+                self._queue.put(('error', str(e)))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _poll(self):
+        try:
+            while True:
+                kind, payload = self._queue.get_nowait()
+                if kind == 'picked':
+                    self._on_picked(payload)
+                elif kind == 'error':
+                    self.pick_btn.set_enabled(True)
+                    self.status_var.set('')
+                    self.log_fn(t('warn_click_select_failed', e=payload))
+        except queue.Empty:
+            pass
+        if self.winfo_exists():
+            self.after(150, self._poll)
+
+    def _on_picked(self, result):
+        self._picked = result
+        self.pick_btn.set_enabled(True)
+        self.status_var.set(t('status_click_select_picked', n=len(result['items_html']),
+                              selector=result['selector']))
+
+        if not hasattr(self, 'ai_panel'):
+            self.fields_area.pack(fill='x', pady=(0, 8))
+            self.ai_panel = AIExtractPanel(
+                self.fields_area, get_ai_config=lambda: get_active_ai_config(self.settings),
+                log_fn=self.log_fn, get_sample_html=lambda: self._picked['items_html'][0])
+            self.ai_panel.enabled_var.set(True)
+            self.ai_panel._on_toggle()
+
+            self.btn_frame.pack(fill='x', pady=(16, 0))
+            RoundedButton(self.btn_frame, t('btn_run_extraction'), command=self._run, variant='accent').pack(
+                side='right', padx=(6, 0))
+
+    def _run(self):
+        if not self._picked:
+            return
+        config = self.ai_panel.get_config()
+        if not config.get('fields'):
+            self.log_fn(t('warn_need_fields'))
+            return
+        items_html = self._picked['items_html']
+        self.destroy()
+        self.on_extract(items_html, config)
+
+
 class AIRefineDialog(tk.Toplevel):
     """AI 추출로 뽑아낸 표를 자연어로 다듬는다. AIScopeRulesDialog와 같은
     '제안받기 -> 미리보기 -> 적용' 흐름이라 배운 적 없어도 낯설지 않다.
@@ -2050,6 +2165,13 @@ class MirrorXApp:
                                             variant='ghost', page_bg=PANEL, padx=13, pady=7)
         self.pagination_btn.pack(side='right', padx=(0, 8))
 
+        # 클릭해서 고르기도 페이지네이션 추출과 마찬가지로 시작 주소만 있으면
+        # 되는 독립 액션이라 항상 눌리게 둔다.
+        self.click_select_btn = RoundedButton(head, f"🖱 {t('btn_click_select')}",
+                                              command=self._open_click_select_dialog,
+                                              variant='ghost', page_bg=PANEL, padx=13, pady=7)
+        self.click_select_btn.pack(side='right', padx=(0, 8))
+
         # height는 '요청 크기'일 뿐이고 실제로는 남는 공간을 채운다. 기본값(24줄)을 두면
         # 창의 최소 높이가 불필요하게 커지므로 작게 잡아둔다.
         self.log_text = scrolledtext.ScrolledText(
@@ -2462,6 +2584,36 @@ class MirrorXApp:
             os.makedirs(out_dir, exist_ok=True)
             saved_paths = ai_extract.export_records(rows, out_dir, 'pagination_extract', config['export_formats'])
             self.msg_queue.put(('log', f'[페이지네이션] {len(rows)}개 행 저장: '
+                                        f'{", ".join(saved_paths) if saved_paths else "없음"}'))
+            self.msg_queue.put(('ai_extract_done', rows, out_dir))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _open_click_select_dialog(self):
+        ClickToSelectDialog(self.root, self.settings, log_fn=self._log,
+                             on_extract=self._start_click_select_thread)
+
+    def _start_click_select_thread(self, items_html, config):
+        ai_config = get_active_ai_config(self.settings)
+        if not ai_ready(ai_config):
+            self._log(t('warn_need_api_key'))
+            return
+        self._log(t('log_click_select_started'))
+        out_dir = os.path.join(CONFIG_DIR, 'click_select_extracts', datetime.now().strftime('%Y%m%d_%H%M%S'))
+
+        def worker():
+            try:
+                rows = ai_extract.extract_list_fields(
+                    items_html, config['fields'], ai_config['api_key'], provider=ai_config['provider'])
+            except Exception as e:
+                self.msg_queue.put(('log', f'[클릭해서 고르기] {e}'))
+                return
+            if not rows:
+                self.msg_queue.put(('log', t('log_click_select_no_rows')))
+                return
+            os.makedirs(out_dir, exist_ok=True)
+            saved_paths = ai_extract.export_records(rows, out_dir, 'click_select_extract', config['export_formats'])
+            self.msg_queue.put(('log', f'[클릭해서 고르기] {len(rows)}개 행 저장: '
                                         f'{", ".join(saved_paths) if saved_paths else "없음"}'))
             self.msg_queue.put(('ai_extract_done', rows, out_dir))
 

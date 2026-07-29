@@ -435,6 +435,22 @@ STRINGS = {
         'log_pagination_started': 'Starting paginated extraction...',
         'log_pagination_no_rows': '[Paginated Extraction] No rows were extracted.',
 
+        'btn_click_select': 'Point & Click',
+        'dialog_click_select_title': 'Point & Click Extraction',
+        'caption_click_select_intro': (
+            'For pages where automatic detection gets confused (or you just want to be precise). '
+            'A real browser window will open — hover over items to highlight them, then click one '
+            "example. It'll find every other item that looks structurally the same and turn them "
+            'into a table.'
+        ),
+        'label_click_select_url': 'Page Address',
+        'btn_open_browser_pick': 'Open Browser & Pick',
+        'status_click_select_waiting': 'Browser window opened — hover an item and click one example...',
+        'status_click_select_picked': 'Found {n} similar item(s) (selector: {selector}).',
+        'warn_click_select_failed': '[Warning] Could not pick an element: {e}',
+        'log_click_select_started': 'Starting point-and-click extraction...',
+        'log_click_select_no_rows': '[Point & Click] No rows were extracted.',
+
         'log_ai_extract_offer_refine': '{n} row(s) extracted. Want to clean up the table in plain English?',
         'dialog_refine_title': 'Clean up the table',
         'caption_refine_intro': (
@@ -899,6 +915,21 @@ STRINGS = {
         'warn_pagination_need_url': '[경고] 시작 페이지 주소를 입력해주세요!',
         'log_pagination_started': '페이지네이션 추출을 시작합니다...',
         'log_pagination_no_rows': '[페이지네이션 추출] 추출된 행이 없습니다.',
+
+        'btn_click_select': '클릭해서 고르기',
+        'dialog_click_select_title': '클릭해서 고르기',
+        'caption_click_select_intro': (
+            '자동 감지가 헷갈려하는 페이지에서(또는 그냥 정확하게 고르고 싶을 때) 사용합니다. '
+            '실제 브라우저 창이 열리면, 항목 위에 마우스를 올려 강조 표시를 확인하고 '
+            '예시가 될 항목 하나를 클릭하세요. 그것과 구조적으로 같은 항목을 전부 찾아 표로 만들어줍니다.'
+        ),
+        'label_click_select_url': '페이지 주소',
+        'btn_open_browser_pick': '브라우저 열고 고르기',
+        'status_click_select_waiting': '브라우저 창이 열렸습니다 — 항목 위에 마우스를 올려보고 예시 하나를 클릭하세요...',
+        'status_click_select_picked': '비슷한 항목 {n}개를 찾았습니다 (셀렉터: {selector}).',
+        'warn_click_select_failed': '[경고] 항목을 고르지 못했습니다: {e}',
+        'log_click_select_started': '클릭해서 고르기 추출을 시작합니다...',
+        'log_click_select_no_rows': '[클릭해서 고르기] 추출된 행이 없습니다.',
 
         'log_ai_extract_offer_refine': '{n}개 행을 뽑았어요. 이 표를 자연어로 다듬어볼까요?',
         'dialog_refine_title': '표 다듬기',
