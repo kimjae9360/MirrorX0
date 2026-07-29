@@ -96,7 +96,9 @@ def propose_refine_plan(instruction, records, api_key, provider='anthropic', mod
     prompt = _plan_prompt(instruction, columns, _sample_rows(records))
     schema = _plan_schema()
 
-    if provider == 'anthropic':
+    if provider == 'ollama':
+        result = ai_extract._ollama_json_call(model, schema, prompt)
+    elif provider == 'anthropic':
         result = ai_extract._anthropic_tool_call(api_key, model, 'refine_plan', _PLAN_DESCRIPTION, schema, prompt)
     elif provider == 'openai':
         result = ai_extract._openai_tool_call(api_key, model, 'refine_plan', _PLAN_DESCRIPTION, schema, prompt)

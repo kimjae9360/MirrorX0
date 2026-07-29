@@ -1,11 +1,18 @@
-"""AI(Anthropic Claude / OpenAI ChatGPT / Google Gemini)를 이용해 크롤링한 HTML
-페이지에서 사용자가 원하는 정보만 구조화된 형태로 뽑아내고, CSV/JSON으로 내보낸다.
+"""AI(Ollama 로컬 무료 / Anthropic Claude / OpenAI ChatGPT / Google Gemini)를
+이용해 크롤링한 HTML 페이지에서 사용자가 원하는 정보만 구조화된 형태로
+뽑아내고, CSV/JSON으로 내보낸다.
 
 크롤링 방식(HTTrack 정적 다운로드든 스마트 크롤링의 브라우저 렌더링이든)과
 무관하게, 저장된 폴더 안의 .html 파일들에 대해 동작하는 공용 후처리 단계로
 설계했다 - 그래야 어떤 방식으로 받은 프로젝트든 나중에 AI 추출을 돌릴 수 있다.
 
-세 프로바이더 모두 "구조화 출력 강제"로 받는다 (자유 텍스트 응답을 파싱하지 않음):
+기본 프로바이더는 Ollama다 - API 키 없이 사용자 PC에서 로컬로 도는 무료
+모델이라, 처음 쓰는 사람도 아무 설정 없이 바로 AI 기능을 써볼 수 있다(느리긴
+하다). Anthropic/OpenAI/Gemini는 각자 API 키를 넣으면 쓸 수 있는 유료
+업그레이드 경로 - 더 빠르지만 사용료가 든다.
+
+네 프로바이더 모두 "구조화 출력 강제"로 받는다 (자유 텍스트 응답을 파싱하지 않음):
+- Ollama: /api/chat의 format=<JSON 스키마>로 강제 (Ollama 자체 구조화 출력 기능)
 - Anthropic: tool-use를 tool_choice로 강제 호출
 - OpenAI: function calling을 tool_choice로 강제 호출
 - Gemini: response_mime_type='application/json' + response_schema로 강제
@@ -19,20 +26,26 @@ import csv
 import json
 import glob
 import datetime
+import urllib.request
+import urllib.error
 
-PROVIDERS = ('anthropic', 'openai', 'gemini')
+PROVIDERS = ('ollama', 'anthropic', 'openai', 'gemini')
 
 DEFAULT_MODELS = {
+    'ollama': 'llama3.2',
     'anthropic': 'claude-haiku-4-5-20251001',
     'openai': 'gpt-4o-mini',
     'gemini': 'gemini-2.0-flash',
 }
 
 PROVIDER_DISPLAY_NAMES = {
+    'ollama': 'Ollama (무료·로컬)',
     'anthropic': 'Anthropic (Claude)',
     'openai': 'OpenAI (ChatGPT)',
     'gemini': 'Google (Gemini)',
 }
+
+OLLAMA_HOST = 'http://127.0.0.1:11434'
 
 # 페이지가 너무 크면 토큰/비용을 넘지 않도록 앞부분만 사용
 _MAX_HTML_CHARS = 60_000
@@ -93,6 +106,30 @@ def _extract_schema(fields):
         'properties': properties,
         'required': list(properties.keys()),
     }
+
+
+# ---------------- Ollama (로컬, 무료, API 키 불필요) ----------------
+
+def _ollama_json_call(model, schema, prompt):
+    payload = json.dumps({
+        'model': model,
+        'messages': [{'role': 'user', 'content': prompt}],
+        'format': schema,
+        'stream': False,
+    }).encode('utf-8')
+    req = urllib.request.Request(f'{OLLAMA_HOST}/api/chat', data=payload,
+                                  headers={'Content-Type': 'application/json'}, method='POST')
+    try:
+        with urllib.request.urlopen(req, timeout=180) as resp:
+            body = json.loads(resp.read().decode('utf-8'))
+    except urllib.error.URLError as e:
+        raise RuntimeError(
+            f'Could not connect to Ollama at {OLLAMA_HOST}. Install and run Ollama from '
+            f'https://ollama.com, and make sure the model is pulled (ollama pull {model}). '
+            f'Detail: {e}'
+        ) from e
+    content = (body.get('message') or {}).get('content', '')
+    return json.loads(content)
 
 
 # ---------------- Anthropic ----------------
@@ -158,7 +195,9 @@ def propose_fields(instruction, sample_html, api_key, provider='anthropic', mode
     prompt = _propose_fields_prompt(instruction, sample_html)
     schema = _fields_list_schema()
 
-    if provider == 'anthropic':
+    if provider == 'ollama':
+        result = _ollama_json_call(model, schema, prompt)
+    elif provider == 'anthropic':
         result = _anthropic_tool_call(api_key, model, 'propose_fields', _FIELDS_SCHEMA_DESCRIPTION, schema, prompt)
     elif provider == 'openai':
         result = _openai_tool_call(api_key, model, 'propose_fields', _FIELDS_SCHEMA_DESCRIPTION, schema, prompt)
@@ -180,7 +219,9 @@ def extract_fields(html, fields, api_key, provider='anthropic', model=None):
     prompt = _extract_prompt(html)
     schema = _extract_schema(fields)
 
-    if provider == 'anthropic':
+    if provider == 'ollama':
+        result = _ollama_json_call(model, schema, prompt)
+    elif provider == 'anthropic':
         result = _anthropic_tool_call(api_key, model, 'extract', _EXTRACT_DESCRIPTION, schema, prompt)
     elif provider == 'openai':
         result = _openai_tool_call(api_key, model, 'extract', _EXTRACT_DESCRIPTION, schema, prompt)
@@ -227,7 +268,9 @@ def extract_list_fields(items_html, fields, api_key, provider='anthropic', model
         model_ = model or DEFAULT_MODELS[provider]
         schema = _extract_list_schema(fields)
         prompt = _extract_list_prompt(chunk)
-        if provider == 'anthropic':
+        if provider == 'ollama':
+            result = _ollama_json_call(model_, schema, prompt)
+        elif provider == 'anthropic':
             result = _anthropic_tool_call(api_key, model_, 'extract_list', _EXTRACT_DESCRIPTION, schema, prompt)
         elif provider == 'openai':
             result = _openai_tool_call(api_key, model_, 'extract_list', _EXTRACT_DESCRIPTION, schema, prompt)

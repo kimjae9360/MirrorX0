@@ -41,11 +41,18 @@ def save_settings(settings):
 
 
 def get_active_ai_config(settings):
-    """settings에 저장된 선택된 AI 프로바이더와 그에 맞는 API 키를 하나로 묶어서 돌려준다."""
-    provider = settings.get('ai_provider', 'anthropic')
-    key_field = {'anthropic': 'anthropic_api_key', 'openai': 'openai_api_key', 'gemini': 'gemini_api_key'}.get(
-        provider, 'anthropic_api_key')
-    return {'provider': provider, 'api_key': settings.get(key_field, '')}
+    """settings에 저장된 선택된 AI 프로바이더와 그에 맞는 API 키를 하나로 묶어서 돌려준다.
+    기본 프로바이더는 ollama(로컬/무료, API 키 불필요)다."""
+    provider = settings.get('ai_provider', 'ollama')
+    key_field = {'ollama': None, 'anthropic': 'anthropic_api_key', 'openai': 'openai_api_key',
+                 'gemini': 'gemini_api_key'}.get(provider, 'anthropic_api_key')
+    return {'provider': provider, 'api_key': settings.get(key_field, '') if key_field else ''}
+
+
+def ai_ready(ai_config):
+    """ollama는 API 키 없이 로컬에서 동작하므로 프로바이더가 ollama면 항상 준비된 것으로 본다.
+    다른 프로바이더는 API 키가 있어야 준비된 것으로 본다."""
+    return ai_config.get('provider') == 'ollama' or bool(ai_config.get('api_key'))
 
 
 PROJECTS_FILE = os.path.join(CONFIG_DIR, 'projects.json')

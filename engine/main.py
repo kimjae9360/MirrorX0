@@ -49,7 +49,7 @@ DEFAULT_SETTINGS = {
     'warc': False,
     'search_index': False,
     # --- AI 크롤링 ---
-    'ai_provider': 'anthropic',  # 'anthropic' | 'openai' | 'gemini'
+    'ai_provider': 'ollama',  # 'ollama'(기본, 무료·로컬) | 'anthropic' | 'openai' | 'gemini'
     'anthropic_api_key': '',
     'openai_api_key': '',
     'gemini_api_key': '',
@@ -73,7 +73,7 @@ from theme import FONTS, resolve_fonts
 import storage
 from storage import (  # noqa: F401
     CONFIG_DIR, CONFIG_FILE, load_settings, save_settings,
-    get_active_ai_config, PROJECTS_FILE, load_projects, save_projects,
+    get_active_ai_config, ai_ready, PROJECTS_FILE, load_projects, save_projects,
     preview_path_for, upsert_project,
 )
 storage.init_defaults(DEFAULT_SETTINGS)
@@ -381,7 +381,7 @@ class PreferencesDialog(tk.Toplevel):
         # --- AI 크롤링 ---
         sec7 = self._section(basic_zone, t('section_ai'))
         self._provider_options = [(p, ai_extract.PROVIDER_DISPLAY_NAMES[p]) for p in ai_extract.PROVIDERS]
-        current_provider = settings.get('ai_provider', 'anthropic')
+        current_provider = settings.get('ai_provider', 'ollama')
         self.ai_provider_var = tk.StringVar(value=next(
             (label for code, label in self._provider_options if code == current_provider),
             self._provider_options[0][1]))
@@ -389,6 +389,11 @@ class PreferencesDialog(tk.Toplevel):
                   lambda p: ttk.Combobox(p, textvariable=self.ai_provider_var, state='readonly',
                                          values=[label for _, label in self._provider_options],
                                          width=combo_width([l for _, l in self._provider_options])).pack())
+
+        tradeoff_box = tk.Frame(sec7, bg=ACCENT_SOFT)
+        tradeoff_box.pack(fill='x', pady=(0, 12))
+        tk.Label(tradeoff_box, text=t('caption_ollama_tradeoff'), bg=ACCENT_SOFT, fg=FG,
+                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=480, justify='left', padx=12, pady=10).pack(anchor='w')
 
         self.anthropic_key_var = tk.StringVar(value=settings.get('anthropic_api_key', ''))
         self._row(sec7, '🔑', t('label_api_key_anthropic'), None,
@@ -484,7 +489,7 @@ class PreferencesDialog(tk.Toplevel):
         lang_code = next((code for code, name in LANG_DISPLAY.items() if name == self.lang_var.get()), 'en')
         self.settings['language'] = lang_code
         provider_code = next(
-            (code for code, label in self._provider_options if label == self.ai_provider_var.get()), 'anthropic')
+            (code for code, label in self._provider_options if label == self.ai_provider_var.get()), 'ollama')
         self.settings['ai_provider'] = provider_code
         self.settings['anthropic_api_key'] = self.anthropic_key_var.get().strip()
         self.settings['openai_api_key'] = self.openai_key_var.get().strip()
@@ -893,7 +898,7 @@ class AIExtractPanel:
 
     def _on_propose(self):
         ai_config = self.get_ai_config()
-        if not ai_config.get('api_key'):
+        if not ai_ready(ai_config):
             self.log_fn(t('warn_need_api_key'))
             return
         instruction = self.instruction_text.get('1.0', 'end').strip()
@@ -1064,7 +1069,7 @@ class AIRefineDialog(tk.Toplevel):
             self.log_fn(t('warn_refine_need_instruction'))
             return
         ai_config = get_active_ai_config(self.settings)
-        if not ai_config.get('api_key'):
+        if not ai_ready(ai_config):
             self.log_fn(t('warn_need_api_key'))
             return
         try:
@@ -1156,7 +1161,7 @@ class AIScopeRulesDialog(tk.Toplevel):
             self.log_fn(t('warn_scope_need_url'))
             return
         ai_config = get_active_ai_config(self.settings)
-        if not ai_config.get('api_key'):
+        if not ai_ready(ai_config):
             self.log_fn(t('warn_need_api_key'))
             return
 
@@ -2324,7 +2329,7 @@ class MirrorXApp:
             self._log(t('warn_need_fields'))
             return
         ai_config = get_active_ai_config(self.settings)
-        if not ai_config.get('api_key'):
+        if not ai_ready(ai_config):
             self._log(t('warn_need_api_key'))
             return
         self._log(t('log_ai_extract_started'))
@@ -2876,7 +2881,7 @@ def main_headless(job_id):
         ai_cfg = job.get('ai_extract') or {}
         if ai_cfg.get('enabled') and ai_cfg.get('fields'):
             ai_config = get_active_ai_config(settings)
-            if ai_config.get('api_key'):
+            if ai_ready(ai_config):
                 log(t('log_ai_extract_started'))
                 max_pages = (job.get('smart', {}) or {}).get('max_pages', 50)
                 ai_extract.run_extraction(

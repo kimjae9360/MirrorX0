@@ -378,7 +378,17 @@ STRINGS = {
 
         'section_ai': 'AI Crawling',
         'label_ai_provider': 'AI Provider',
-        'caption_ai_provider': 'Which AI is used for field suggestions and data extraction.',
+        'caption_ai_provider': (
+            'Which AI is used for field suggestions and data extraction. '
+            'Default is Ollama — free and runs on your own PC, but slower. '
+            'Enter a cloud API key below to switch to a faster paid provider.'
+        ),
+        'caption_ollama_tradeoff': (
+            'Ollama (free, default): no API key, runs fully on your PC, no per-use cost — but '
+            'slower and needs the Ollama app installed (ollama.com) with a model pulled '
+            '(e.g. "ollama pull llama3.2"). Anthropic/OpenAI/Gemini (paid): faster and no local '
+            'setup, but needs your own API key and costs money per use.'
+        ),
         'label_api_key_anthropic': 'Anthropic API Key',
         'label_api_key_openai': 'OpenAI API Key',
         'label_api_key_gemini': 'Google Gemini API Key',
@@ -823,7 +833,17 @@ STRINGS = {
 
         'section_ai': 'AI 크롤링',
         'label_ai_provider': 'AI 프로바이더',
-        'caption_ai_provider': '필드 제안과 데이터 추출에 어떤 AI를 사용할지 선택합니다.',
+        'caption_ai_provider': (
+            '필드 제안과 데이터 추출에 어떤 AI를 사용할지 선택합니다. 기본값은 Ollama — '
+            'API 키 없이 무료로, 내 컴퓨터에서 직접 실행되지만 더 느립니다. 아래에 클라우드 '
+            'API 키를 입력하면 더 빠른 유료 프로바이더로 바뀝니다.'
+        ),
+        'caption_ollama_tradeoff': (
+            'Ollama (무료, 기본값): API 키 필요 없이 내 컴퓨터에서 전부 실행되어 사용료가 없지만, '
+            '더 느리고 Ollama 앱 설치(ollama.com)와 모델 다운로드(예: "ollama pull llama3.2")가 '
+            '필요합니다. Anthropic/OpenAI/Gemini (유료): 별도 설치 없이 훨씬 빠르지만, 본인 API '
+            '키가 필요하고 사용할 때마다 비용이 듭니다.'
+        ),
         'label_api_key_anthropic': 'Anthropic API 키',
         'label_api_key_openai': 'OpenAI API 키',
         'label_api_key_gemini': 'Google Gemini API 키',

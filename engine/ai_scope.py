@@ -159,7 +159,9 @@ def propose_scope_rules(goal, link_sample, start_url, api_key, provider='anthrop
     )
     description = '사용자 목표에 맞는 HTTrack URL 필터 규칙을 제안한다.'
 
-    if provider == 'anthropic':
+    if provider == 'ollama':
+        result = ai_extract._ollama_json_call(model, schema, prompt)
+    elif provider == 'anthropic':
         result = ai_extract._anthropic_tool_call(
             api_key, model, 'propose_scope_rules', description, schema, prompt)
     elif provider == 'openai':
