@@ -451,6 +451,14 @@ STRINGS = {
         'log_click_select_started': 'Starting point-and-click extraction...',
         'log_click_select_no_rows': '[Point & Click] No rows were extracted.',
 
+        'btn_clean_organize': 'Make a Tidy Copy',
+        'log_clean_organize_started': (
+            'Creating a tidy copy (assets sorted into css/js/images/fonts, HTTrack '
+            "bookkeeping files removed). The original folder is left untouched..."
+        ),
+        'log_clean_organize_done': 'Tidy copy created: {path}',
+        'warn_clean_organize_failed': '[Warning] Could not create a tidy copy: {e}',
+
         'log_ai_extract_offer_refine': '{n} row(s) extracted. Want to clean up the table in plain English?',
         'dialog_refine_title': 'Clean up the table',
         'caption_refine_intro': (
@@ -930,6 +938,14 @@ STRINGS = {
         'warn_click_select_failed': '[경고] 항목을 고르지 못했습니다: {e}',
         'log_click_select_started': '클릭해서 고르기 추출을 시작합니다...',
         'log_click_select_no_rows': '[클릭해서 고르기] 추출된 행이 없습니다.',
+
+        'btn_clean_organize': '정리된 사본 만들기',
+        'log_clean_organize_started': (
+            '정리된 사본을 만드는 중입니다 (css/js/images/fonts로 재배치, HTTrack 관리 '
+            '파일 제거). 원본 폴더는 그대로 둡니다...'
+        ),
+        'log_clean_organize_done': '정리된 사본을 만들었습니다: {path}',
+        'warn_clean_organize_failed': '[경고] 정리된 사본을 만들지 못했습니다: {e}',
 
         'log_ai_extract_offer_refine': '{n}개 행을 뽑았어요. 이 표를 자연어로 다듬어볼까요?',
         'dialog_refine_title': '표 다듬기',

@@ -19,6 +19,7 @@ import scheduler_win
 import smart_crawl
 import pagination_extract
 import click_select
+import clean_organize
 import ai_extract
 import ai_scope
 import data_refine
@@ -2158,6 +2159,14 @@ class MirrorXApp:
         self.ai_extract_btn.set_enabled(False)
         self.ai_extract_btn.pack(side='right', padx=(0, 8))
 
+        # 원본은 절대 건드리지 않고, 정리된 '사본'을 새 폴더에 만드는 액션이라
+        # '결과 폴더 열기'와 똑같은 시점(완료된 프로젝트가 있을 때)에만 눌리게 한다.
+        self.clean_organize_btn = RoundedButton(head, f"🧹 {t('btn_clean_organize')}",
+                                                command=self._open_clean_organize,
+                                                variant='ghost', page_bg=PANEL, padx=13, pady=7)
+        self.clean_organize_btn.set_enabled(False)
+        self.clean_organize_btn.pack(side='right', padx=(0, 8))
+
         # 페이지네이션 추출은 사이트를 먼저 받을 필요가 없는 독립된 액션이라
         # (시작 주소만 있으면 됨) '결과 폴더'와 무관하게 항상 눌리게 둔다.
         self.pagination_btn = RoundedButton(head, f"📑 {t('btn_pagination_extract')}",
@@ -2556,6 +2565,33 @@ class MirrorXApp:
         self._log(t('log_ai_extract_offer_refine', n=len(records)))
         AIRefineDialog(self.root, records, out_dir, self.settings, log_fn=self._log)
 
+    def _open_clean_organize(self):
+        # 버튼 하나로 '방금 끝난 작업의 결과 폴더'를 대상으로 삼는다 - AI 추출과
+        # 똑같은 방식으로 경로를 구한다. 원본은 절대 건드리지 않고 정리된 사본을
+        # 새 폴더에 만드는 것뿐이라 확인 창 없이 바로 실행한다.
+        out_dir = os.path.join(self.base_path_var.get().strip(), self.project_var.get().strip())
+        if not os.path.isdir(out_dir):
+            self._log(t('warn_folder_not_found'))
+            return
+        self.clean_organize_btn.set_enabled(False)
+        self._log(t('log_clean_organize_started'))
+
+        def worker():
+            try:
+                result_dir = clean_organize.organize_folder(
+                    out_dir, log_fn=lambda msg: self.msg_queue.put(('log', msg)))
+                self.msg_queue.put(('clean_organize_done', result_dir))
+            except Exception as e:
+                self.msg_queue.put(('log', t('warn_clean_organize_failed', e=e)))
+                self.msg_queue.put(('clean_organize_done', None))
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def _on_clean_organize_done(self, result_dir):
+        self.clean_organize_btn.set_enabled(True)
+        if result_dir:
+            self._log(t('log_clean_organize_done', path=result_dir))
+
     def _open_pagination_dialog(self):
         PaginationExtractDialog(self.root, self.settings, log_fn=self._log,
                                  on_run=self._start_pagination_thread)
@@ -2820,6 +2856,7 @@ class MirrorXApp:
         self._set_busy(True)
         self.open_folder_btn.set_enabled(False)
         self.ai_extract_btn.set_enabled(False)
+        self.clean_organize_btn.set_enabled(False)
         self._clear_log()
         self._reset_progress_ui()
         self._log(t('log_smart_started'))
@@ -2877,6 +2914,7 @@ class MirrorXApp:
         if ok:
             self.open_folder_btn.set_enabled(True)
             self.ai_extract_btn.set_enabled(True)
+            self.clean_organize_btn.set_enabled(True)
         self._finish_project_record('success' if ok else 'errors')
         if self.power_action_var.get() == 'on_complete' and not self._user_stopped:
             self._schedule_shutdown(60, t('reason_on_complete'))
@@ -2901,6 +2939,7 @@ class MirrorXApp:
         self._set_busy(True)
         self.open_folder_btn.set_enabled(False)
         self.ai_extract_btn.set_enabled(False)
+        self.clean_organize_btn.set_enabled(False)
         self._clear_log()
         self._reset_progress_ui()
 
@@ -3012,6 +3051,8 @@ class MirrorXApp:
                     self._on_smart_done(msg[1])
                 elif kind == 'ai_extract_done':
                     self._on_ai_extract_done(msg[1], msg[2])
+                elif kind == 'clean_organize_done':
+                    self._on_clean_organize_done(msg[1])
         except queue.Empty:
             pass
         self.root.after(80, self._poll_queue)
@@ -3032,16 +3073,19 @@ class MirrorXApp:
             self._log(f"\n[{ts}] {t('log_success')}")
             self.open_folder_btn.set_enabled(True)
             self.ai_extract_btn.set_enabled(True)
+            self.clean_organize_btn.set_enabled(True)
             project_status = 'success'
         elif isinstance(result, int) and result == 0 and engine_errors > 0:
             self._log(f"\n[{ts}] {t('log_done_with_errors', n=engine_errors)}")
             self.open_folder_btn.set_enabled(True)
             self.ai_extract_btn.set_enabled(True)
+            self.clean_organize_btn.set_enabled(True)
             project_status = 'errors'
         elif isinstance(result, int):
             self._log(f"\n[{ts}] {t('log_done_code', code=result)}")
             self.open_folder_btn.set_enabled(True)
             self.ai_extract_btn.set_enabled(True)
+            self.clean_organize_btn.set_enabled(True)
             project_status = 'errors'
         else:
             self._log(f"\n[{ts}] {t('log_fatal_error', result=result)}")
