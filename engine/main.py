@@ -530,10 +530,11 @@ class MirrorXApp:
             item.pack(fill='x', pady=(16, 0), padx=12)
             head = tk.Frame(item, bg=PANEL)
             head.pack(fill='x')
-            icon_lbl = tk.Label(head, text=icon, bg=PANEL, fg=FG, font=(FONTS['ui'], TYPE_TITLE))
+            icon_lbl = tk.Label(head, text=icon, bg=PANEL, fg=FG,
+                                font=(FONTS['ui'], TYPE_BODY_LARGE))
             icon_lbl.pack(side='left', padx=(12, 10), pady=(12, 0))
             title_lbl = tk.Label(head, text=t(title_key), bg=PANEL, fg=FG,
-                                 font=(FONTS['ui'], TYPE_BODY_LARGE, 'bold'))
+                                 font=(FONTS['ui'], TYPE_BODY, 'bold'))
             title_lbl.pack(side='left', pady=(12, 0))
             desc_lbl = tk.Label(item, text=t(desc_key), bg=PANEL, fg=FG_MUTED,
                                 font=(FONTS['ui'], TYPE_CAPTION), wraplength=self.NAV_WIDTH_OPEN - 48,
@@ -594,10 +595,12 @@ class MirrorXApp:
         hero.grid_columnconfigure(2, weight=0, uniform='hero')
 
         left_stats = tk.Frame(hero, bg=BG)
+        self._left_stats = left_stats
         left_stats.grid(row=0, column=0, sticky='n')
         center = tk.Frame(hero, bg=BG)
         center.grid(row=0, column=1, padx=48)
         right_stats = tk.Frame(hero, bg=BG)
+        self._right_stats = right_stats
         right_stats.grid(row=0, column=2, sticky='n')
 
         self.elapsed_stat = self._stat_card(left_stats, '⏱', t('stat_elapsed'))
@@ -641,8 +644,11 @@ class MirrorXApp:
         # --- (B) 데이터로 뽑기 - 목적을 이걸로 고르면 도구가 바로 보인다 ---
         # 폭을 고정해야 카드 4장의 오른쪽 끝이 맞는다. 예전엔 카드마다 내용에
         # 맞춰 폭이 달라져서 버튼이 카드 배경 밖으로 삐져나왔다.
-        self._data_zone = tk.Frame(center, bg=BG, width=self.DATA_CARD_WIDTH)
-        self._data_zone.pack_propagate(False)
+        self._data_zone = tk.Frame(center, bg=BG)
+        # 높이는 내용에 맞게 늘어나야 하므로 pack_propagate를 끄면 안 된다
+        # (끄면 높이가 1px로 얼어붙어 카드가 통째로 안 보인다 - 실제로 겪음).
+        # 대신 높이 0짜리 막대로 최소 폭만 잡아준다.
+        tk.Frame(self._data_zone, bg=BG, width=self.DATA_CARD_WIDTH, height=0).pack()
         for key, icon, title_key, desc_key in self._DATA_TOOLS:
             # 버튼을 따로 두지 않고 카드 전체를 누르게 한다 - 행마다 주황 버튼이
             # 있으면 넷 다 강조되어 오히려 아무것도 강조되지 않는다.
@@ -854,6 +860,10 @@ class MirrorXApp:
             # 남는 건 '어느 폴더의 데이터를 다룰지'(이름 + 저장 위치)뿐이다.
             self._url_box.pack_forget()
             self._action_col.grid_remove()
+            # 지표 카드는 '얼마나 받았는지'를 보여주는 다운로드용 값이라
+            # 데이터 추출 화면에서는 늘 '-'로 남아 자리만 차지한다.
+            self._left_stats.grid_remove()
+            self._right_stats.grid_remove()
             self._project_title_var.set(t('panel_project_data'))
         else:
             self._data_zone.pack_forget()
@@ -862,6 +872,8 @@ class MirrorXApp:
             self._url_box.pack(fill='x', before=self._fields_frame)
             if self.mode_var.get() != 'smart':
                 self._action_col.grid()
+            self._left_stats.grid()
+            self._right_stats.grid()
             self._project_title_var.set(t('panel_project'))
         self._sync_nav_selection()
         self._sync_start_button()
@@ -913,13 +925,6 @@ class MirrorXApp:
         # AI 추출/페이지네이션 추출/클릭해서 고르기/정리된 사본 만들기 - 4개를 각각
         # 작은 아이콘 버튼으로 늘어놓으면 뭐가 뭔지, 언제 쓰는 건지 알기 어렵다.
         # 하나의 진입점으로 모으고, 다이얼로그 안에서 각각 설명과 함께 고르게 한다.
-        # 버튼 자체는 항상 눌리게 둔다 - 4개 중 절반(페이지네이션 추출/클릭해서
-        # 고르기)은 완료된 프로젝트 없이도 쓸 수 있어서다. 나머지 절반(AI 추출/
-        # 정리된 사본 만들기)은 다이얼로그 안에서 그 항목만 비활성화해 보여준다.
-        self.data_tools_btn = RoundedButton(head, f"🧰 {t('btn_data_tools')}",
-                                            command=self._open_data_tools_dialog,
-                                            variant='ghost', page_bg=PANEL, padx=13, pady=7)
-        self.data_tools_btn.pack(side='right', padx=(0, 8))
 
         # height는 '요청 크기'일 뿐이고 실제로는 남는 공간을 채운다. 기본값(24줄)을 두면
         # 창의 최소 높이가 불필요하게 커지므로 작게 잡아둔다.
@@ -1367,7 +1372,6 @@ class MirrorXApp:
         if not os.path.isdir(out_dir):
             self._log(t('warn_folder_not_found'))
             return
-        self.data_tools_btn.set_enabled(False)
         self._log(t('log_clean_organize_started'))
 
         def worker():
@@ -1382,7 +1386,6 @@ class MirrorXApp:
         threading.Thread(target=worker, daemon=True).start()
 
     def _on_clean_organize_done(self, result_dir):
-        self.data_tools_btn.set_enabled(True)
         if result_dir:
             self._log(t('log_clean_organize_done', path=result_dir))
 
