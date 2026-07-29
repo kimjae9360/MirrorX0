@@ -54,6 +54,7 @@ DEFAULT_SETTINGS = {
     'search_index': False,
     # --- AI 크롤링 ---
     'ai_provider': 'ollama',  # 'ollama'(기본, 무료·로컬) | 'anthropic' | 'openai' | 'gemini'
+    'nav_collapsed': False,   # 좌측 내비게이션 접힘 상태(다음 실행에도 유지)
     'anthropic_api_key': '',
     'openai_api_key': '',
     'gemini_api_key': '',
@@ -1588,7 +1589,7 @@ class OptionsDialog(tk.Toplevel):
     방식을 그대로 따른다 - 모든 설정을 환경설정에 몰아넣지 않고, 지금 값이
     메인 화면에 보이고 누르면 바로 고칠 수 있게 하기 위함."""
 
-    TITLES = {'scope': 'panel_scope', 'files': 'panel_files',
+    TITLES = {'method': 'panel_method', 'scope': 'panel_scope', 'files': 'panel_files',
               'safety': 'panel_safety', 'power': 'panel_power',
               'smart': 'panel_smart_options'}
 
@@ -1613,7 +1614,7 @@ class OptionsDialog(tk.Toplevel):
         card.pack(fill='both', expand=True)
         body = card.body
 
-        {'scope': self._build_scope, 'files': self._build_files,
+        {'method': self._build_method, 'scope': self._build_scope, 'files': self._build_files,
          'safety': self._build_safety, 'power': self._build_power,
          'smart': self._build_smart}[group](body)
 
@@ -1622,6 +1623,27 @@ class OptionsDialog(tk.Toplevel):
     def _close(self):
         self.app._refresh_option_summaries()
         self.destroy()
+
+    # ---------------- 받는 방식 ----------------
+    def _build_method(self, parent):
+        """'미러링 vs 스마트'를 다운로드의 한 옵션으로 고르게 한다.
+        예전엔 화면 맨 위 큰 토글이었는데, 이름에 '크롤링'이 들어가 있어
+        데이터 추출 기능으로 오해받았다. 결과물은 둘 다 '파일'이므로
+        여기서 '어떻게 받을지'로만 고르게 하는 편이 헷갈리지 않는다."""
+        app = self.app
+
+        def on_pick():
+            app._on_mode_changed()
+
+        for value, title_key, desc_key in (
+                ('mirror', 'method_fast_title', 'method_fast_desc'),
+                ('smart', 'method_browser_title', 'method_browser_desc')):
+            row = ttk.Frame(parent, style='Panel.TFrame')
+            row.pack(fill='x', pady=(0, 10))
+            ttk.Radiobutton(row, text=t(title_key), value=value, variable=app.mode_var,
+                            command=on_pick).pack(anchor='w')
+            ttk.Label(row, text=t(desc_key), style='Caption.TLabel',
+                      wraplength=560).pack(anchor='w', padx=(22, 0))
 
     # ---------------- 수집 범위 ----------------
     def _build_scope(self, parent):
@@ -2054,8 +2076,9 @@ class MirrorXApp:
 
     def _build_ui(self):
         self.root.title('MirrorX0')
-        self.root.geometry('1340x900')
-        self.root.minsize(1080, 740)
+        # 좌측 내비게이션(260px)이 생긴 만큼 창도 그만큼 넓게 잡는다.
+        self.root.geometry('1560x900')
+        self.root.minsize(1240, 740)
 
         # 스크롤 없이 한 화면에 다 들어가는 구조. grid의 weight로 창을 줄이면
         # 각 영역이 같이 줄어들고(원형 버튼까지), minsize가 하한을 지켜준다.
@@ -2065,17 +2088,28 @@ class MirrorXApp:
         # 설정값들과 나란히 있는 편이 "이게 왜 여기 있는지" 더 잘 와닿는다.
         root_frame = tk.Frame(self.root, bg=BG)
         root_frame.pack(fill='both', expand=True)
-        root_frame.grid_columnconfigure(0, weight=1)
+        root_frame.grid_columnconfigure(0, weight=0)
+        root_frame.grid_columnconfigure(1, weight=1)
         root_frame.grid_rowconfigure(2, weight=1)
         self._root_frame = root_frame
 
         header = BrandHeader(root_frame, t('app_subtitle'))
-        header.grid(row=0, column=0, sticky='ew')
+        header.grid(row=0, column=0, columnspan=2, sticky='ew')
+
+        # 이 앱이 하는 일은 크게 둘 - '사이트를 통째로 받기'와 '데이터를 뽑기'.
+        # 둘은 결과물이 아예 달라서(파일 폴더 vs 표), 화면 안에서 토글로 섞기보다
+        # 좌측에 늘 보이는 두 갈래로 두는 편이 헷갈리지 않는다.
+        # 내비게이션이 이 값을 읽으므로 히어로보다 먼저 만들어 둔다.
+        self.intent_var = tk.StringVar(value='save')
+        nav = tk.Frame(root_frame, bg=PANEL, width=self.NAV_WIDTH_OPEN)
+        nav.grid(row=1, column=0, rowspan=2, sticky='ns')
+        nav.grid_propagate(False)
+        self._build_nav(nav)
 
         self._build_hero(root_frame)
 
         bottom = tk.Frame(root_frame, bg=BG)
-        bottom.grid(row=2, column=0, sticky='nsew', padx=26, pady=(4, 20))
+        bottom.grid(row=2, column=1, sticky='nsew', padx=26, pady=(4, 20))
         bottom.grid_rowconfigure(0, weight=1)
         bottom.grid_columnconfigure(0, weight=3, uniform='bottom')
         bottom.grid_columnconfigure(1, weight=2, uniform='bottom')
@@ -2194,10 +2228,93 @@ class MirrorXApp:
         ('clean_organize', '🧹', 'btn_clean_organize', 'desc_clean_organize'),
     )
 
+    # 좌측 내비게이션 - (intent 값, 아이콘, 제목 문자열키, 설명 문자열키)
+    _NAV_ITEMS = (
+        ('save', '📥', 'nav_download', 'nav_download_desc'),
+        ('data', '🔍', 'nav_crawl', 'nav_crawl_desc'),
+    )
+
+    NAV_WIDTH_OPEN = 260
+    NAV_WIDTH_CLOSED = 76
+
+    def _build_nav(self, parent):
+        """좌측 내비게이션. 이 앱의 두 갈래(사이트 다운로드 / 크롤링)를 늘
+        보이게 두되, 화면이 좁을 때를 위해 아이콘만 남기고 접을 수 있다.
+        접힘 상태는 설정에 저장해서 다음 실행에도 유지한다."""
+        self._nav_frame = parent
+        self._nav_collapsed = bool(self.settings.get('nav_collapsed', False))
+
+        toggle = tk.Frame(parent, bg=PANEL, cursor='hand2')
+        toggle.pack(fill='x', pady=(10, 0))
+        self._nav_toggle_lbl = tk.Label(toggle, text='«', bg=PANEL, fg=FG_MUTED,
+                                        font=(FONTS['ui'], TYPE_BODY_LARGE, 'bold'))
+        self._nav_toggle_lbl.pack(anchor='e', padx=14)
+        for w in (toggle, self._nav_toggle_lbl):
+            w.bind('<Button-1>', lambda _e: self._toggle_nav())
+
+        self._nav_buttons = {}
+        for key, icon, title_key, desc_key in self._NAV_ITEMS:
+            item = tk.Frame(parent, bg=PANEL, cursor='hand2')
+            item.pack(fill='x', pady=(16, 0), padx=12)
+            head = tk.Frame(item, bg=PANEL)
+            head.pack(fill='x')
+            icon_lbl = tk.Label(head, text=icon, bg=PANEL, fg=FG, font=(FONTS['ui'], TYPE_TITLE))
+            icon_lbl.pack(side='left', padx=(12, 10), pady=(12, 0))
+            title_lbl = tk.Label(head, text=t(title_key), bg=PANEL, fg=FG,
+                                 font=(FONTS['ui'], TYPE_BODY_LARGE, 'bold'))
+            title_lbl.pack(side='left', pady=(12, 0))
+            desc_lbl = tk.Label(item, text=t(desc_key), bg=PANEL, fg=FG_MUTED,
+                                font=(FONTS['ui'], TYPE_CAPTION), wraplength=self.NAV_WIDTH_OPEN - 48,
+                                justify='left', anchor='w')
+            desc_lbl.pack(fill='x', padx=(12, 12), pady=(4, 12))
+            self._nav_buttons[key] = (item, head, icon_lbl, title_lbl, desc_lbl)
+            for w in (item, head, icon_lbl, title_lbl, desc_lbl):
+                w.bind('<Button-1>', lambda _e, k=key: self._on_nav_clicked(k))
+        self._apply_nav_collapsed()
+        self._sync_nav_selection()
+
+    def _toggle_nav(self):
+        self._nav_collapsed = not self._nav_collapsed
+        self.settings['nav_collapsed'] = self._nav_collapsed
+        save_settings(self.settings)
+        self._apply_nav_collapsed()
+
+    def _apply_nav_collapsed(self):
+        """접힘 상태에 맞춰 폭을 바꾸고 글자를 숨기거나 되살린다.
+        아이콘은 접혀도 남겨서 어디를 누르는지 알 수 있게 한다."""
+        collapsed = self._nav_collapsed
+        self._nav_frame.configure(width=self.NAV_WIDTH_CLOSED if collapsed else self.NAV_WIDTH_OPEN)
+        self._nav_toggle_lbl.configure(text='»' if collapsed else '«')
+        for _key, (_item, _head, _icon, title_lbl, desc_lbl) in self._nav_buttons.items():
+            if collapsed:
+                title_lbl.pack_forget()
+                desc_lbl.pack_forget()
+            else:
+                title_lbl.pack(side='left', pady=(8, 0))
+                desc_lbl.pack(fill='x', padx=(8, 8), pady=(2, 8))
+
+    def _on_nav_clicked(self, key):
+        if getattr(self, '_busy', False):
+            return
+        self.intent_var.set(key)
+        self._on_intent_changed()
+
+    def _sync_nav_selection(self):
+        """지금 고른 항목만 눈에 띄게 표시한다(배경색 + 글자색)."""
+        if not hasattr(self, '_nav_buttons'):
+            return
+        current = self.intent_var.get()
+        for key, widgets in self._nav_buttons.items():
+            selected = (key == current)
+            bg = ACCENT_SOFT if selected else PANEL
+            for w in widgets:
+                w.configure(bg=bg)
+            widgets[3].configure(fg=ACCENT if selected else FG)
+
     def _build_hero(self, parent):
         """원형 시작 버튼을 가운데 두고 좌우로 실시간 지표 카드를 배치한다."""
         hero = tk.Frame(parent, bg=BG)
-        hero.grid(row=1, column=0, sticky='ew', padx=26, pady=(10, 4))
+        hero.grid(row=1, column=1, sticky='ew', padx=26, pady=(10, 4))
         # 지표 카드 열은 내용 폭만 차지하게 두고(weight=0), 남는 폭은 전부 가운데가
         # 가져간다 - 그래야 카드가 쓸데없이 길어지지 않고 버튼 주변에 여백이 생긴다.
         hero.grid_columnconfigure(0, weight=0, uniform='hero')
@@ -2219,25 +2336,21 @@ class MirrorXApp:
         self.speed_stat = self._stat_card(right_stats, '⚡', t('stat_speed'))
         self.errors_stat = self._stat_card(right_stats, '⚠', t('stat_errors'))
 
-        # 가장 먼저 '무엇을 하려는지'를 고르게 한다. 결과물이 아예 다르기 때문 -
-        # 저장은 '파일 폴더'가, 추출은 '표(CSV)'가 나온다. 이걸 먼저 안 고르면
-        # 시작 버튼과 데이터 도구 중 뭘 눌러야 할지 헷갈린다는 피드백을 반영.
-        self.intent_var = tk.StringVar(value='save')
-        SegmentedControl(center, self.intent_var,
-                         [('save', t('intent_save')), ('data', t('intent_data'))],
-                         command=self._on_intent_changed, page_bg=BG, width=400).pack(pady=(0, 4))
+        # 목적(다운로드/크롤링)은 좌측 내비게이션이 정하고, 여기는 고른 쪽의
+        # 내용만 보여준다. 화면 안에 토글을 겹겹이 두면 오히려 헷갈린다는
+        # 피드백을 반영해 세그먼트 컨트롤을 걷어냈다.
         self._intent_caption_var = tk.StringVar(value=t('caption_intent_save'))
         tk.Label(center, textvariable=self._intent_caption_var, bg=BG, fg=FG_MUTED,
                  font=(FONTS['ui'], TYPE_CAPTION), wraplength=420, justify='center').pack(pady=(0, 10))
 
-        # --- (A) 파일로 저장 ---
+        # --- (A) 사이트 다운로드 ---
         self._save_zone = tk.Frame(center, bg=BG)
         self._save_zone.pack()
 
+        # '미러링 vs 스마트'는 이제 이 화면의 큰 분기가 아니라 '받는 방식'이라는
+        # 다운로드 옵션이다(설정 요약 행에서 고른다). 여기서는 지금 고른 방식이
+        # 무엇인지 한 줄로만 알려준다.
         self.mode_var = tk.StringVar(value='mirror')
-        SegmentedControl(self._save_zone, self.mode_var,
-                         [('mirror', t('mode_mirror')), ('smart', t('mode_smart'))],
-                         command=self._on_mode_changed, page_bg=BG, width=340).pack(pady=(0, 6))
         self._mode_caption_var = tk.StringVar(value=t('caption_mode_mirror'))
         tk.Label(self._save_zone, textvariable=self._mode_caption_var, bg=BG, fg=FG_MUTED,
                  font=(FONTS['ui'], TYPE_CAPTION), wraplength=380, justify='center').pack(pady=(0, 10))
@@ -2387,9 +2500,11 @@ class MirrorXApp:
     _OPTION_ROWS = {
         # 예약(스케줄러)은 스마트 크롤링 모드에만 둔다 - 이름이 '스마트 스케줄러'인데
         # 사이트 미러링 탭에도 보이면 어느 쪽 기능인지 헷갈린다.
-        'mirror': (('scope', '🎯', 'panel_scope'), ('files', '📦', 'panel_files'),
+        'mirror': (('method', '⚡', 'panel_method'),
+                   ('scope', '🎯', 'panel_scope'), ('files', '📦', 'panel_files'),
                    ('safety', '🛡', 'panel_safety'), ('power', '⏻', 'panel_power')),
-        'smart': (('smart', '🧠', 'panel_smart_options'), ('power', '⏻', 'panel_power'),
+        'smart': (('method', '⚡', 'panel_method'),
+                  ('smart', '🧠', 'panel_smart_options'), ('power', '⏻', 'panel_power'),
                   ('schedule', '🗓', 'panel_schedule_list')),
     }
 
@@ -2440,6 +2555,7 @@ class MirrorXApp:
             self._data_zone.pack_forget()
             self._save_zone.pack()
             self._options_area.pack(fill='x')
+        self._sync_nav_selection()
         self._sync_start_button()
 
     def _option_row(self, parent, group, icon, title, value_var):
@@ -2541,6 +2657,9 @@ class MirrorXApp:
         """메인 화면의 요약 행에 지금 설정된 값을 사람이 읽는 문장으로 채운다."""
         if not hasattr(self, '_summary_vars'):
             return
+        if 'method' in self._summary_vars:
+            self._summary_vars['method'].set(
+                t('method_browser_title') if self.mode_var.get() == 'smart' else t('method_fast_title'))
         if 'smart' in self._summary_vars:
             text = t('summary_smart_value', pages=self.max_pages_var.get(), depth=self.follow_depth_var.get())
             pause = self._effective_smart_pause()
